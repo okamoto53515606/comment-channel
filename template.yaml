@@ -1,0 +1,170 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: comment-channel — AI多様性コメントジェネレーター
+
+Parameters:
+  CloudFrontDomain:
+    Type: String
+    Description: CloudFront ドメイン名
+    Default: 'comment-channel.okamomedia.tokyo'
+
+  AcmCertificateArn:
+    Type: String
+    Description: ACM証明書ARN (us-east-1)
+    Default: 'arn:aws:acm:us-east-1:210387976006:certificate/2d79f601-1fc5-4eee-bdcd-3a2af57a1d99'
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 512
+    Environment:
+      Variables:
+        RATE_LIMIT_TABLE: !Ref RateLimitTable
+        CLOUDFRONT_DOMAIN: !Ref CloudFrontDomain
+
+Resources:
+  # ===== S3 バケット（静的ファイル + 生成HTML） =====
+  CommentPagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'comment-channel-pages-${AWS::AccountId}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: ['*']
+            AllowedMethods: ['GET', 'HEAD']
+            AllowedHeaders: ['*']
+            MaxAge: 3600
+
+  # CloudFront が S3 にアクセスするための OAC
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CommentPagesBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${CommentPagesBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                'AWS:SourceArn': !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
+
+  # ===== DynamoDB（レート制限用のみ） =====
+  RateLimitTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: CommentChannelRateLimit
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # ===== API Gateway =====
+  CommentApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: CommentChannelApi
+      StageName: prod
+      EndpointConfiguration:
+        Type: REGIONAL
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Signature,X-Payload-Id'"
+        AllowOrigin: "'https://comment-channel.okamomedia.tokyo'"
+        MaxAge: "'3600'"
+      MethodSettings:
+        - HttpMethod: '*'
+          ResourcePath: '/*'
+          ThrottlingBurstLimit: 100
+          ThrottlingRateLimit: 50
+
+  # ===== Lambda: 記事プロキシ =====
+  ArticleProxyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: comment-channel-article-proxy
+      CodeUri: lambda/article-proxy/
+      Handler: index.lambda_handler
+      Timeout: 20
+      MemorySize: 512
+      Environment:
+        Variables:
+          RATE_LIMIT_TABLE: !Ref RateLimitTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
+      Events:
+        FetchArticle:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CommentApi
+            Path: /fetch-article
+            Method: POST
+
+  # ===== CloudFront =====
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt CommentPagesBucket.RegionalDomainName
+            OriginAccessControlId: !Ref CloudFrontOAC
+            S3OriginConfig: {}
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: ['GET', 'HEAD', 'OPTIONS']
+          CachedMethods: ['GET', 'HEAD', 'OPTIONS']
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          MinTTL: 0
+          DefaultTTL: 3600
+          MaxTTL: 86400
+          Compress: true
+        PriceClass: PriceClass_200  # 北米・欧州・アジア
+        Aliases:
+          - !Ref CloudFrontDomain
+        ViewerCertificate:
+          AcmCertificateArn: !Ref AcmCertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+
+  CloudFrontOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: comment-channel-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway Endpoint
+    Value: !Sub 'https://${CommentApi}.execute-api.${AWS::Region}.amazonaws.com/prod/'
+  CloudFrontUrl:
+    Description: CloudFront URL
+    Value: !Sub 'https://${CloudFrontDomain}'
+  S3BucketName:
+    Description: S3 Bucket Name
+    Value: !Ref CommentPagesBucket

@@ -1,27 +1,24 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# comment-channel project
 
 # dependencies
-/node_modules
-/.pnp
-.pnp.js
+node_modules/
+__pycache__/
+*.pyc
+.aws-sam/
 
-# testing
-/coverage
+# environment
+.env
+*.log
 
-# next.js
-/.next/
-/out/
+# generated config (contains signing secret)
+frontend/js/config.js
 
-# production
-/build
+# sam
+samconfig.toml
 
 # misc
 .DS_Store
 *.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
 yarn-error.log*
 
 # local env files
@@ -33,4 +30,4 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
+

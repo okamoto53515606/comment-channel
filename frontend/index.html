@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>comment-channel — AI多様性コメントジェネレーター</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+</head>
+<body>
+
+<header class="site-header">
+  <h1>💬 comment-channel</h1>
+  <p class="subtitle">AI多様性コメントジェネレーター — 100の視点で記事を読む</p>
+</header>
+
+<main class="container">
+
+  <!-- ===== STEP 1: 記事入力 ===== -->
+  <section id="step-input" class="card">
+    <h2>📰 記事を入力</h2>
+
+    <div class="form-group">
+      <label for="article-url">記事URL</label>
+      <input type="url" id="article-url" placeholder="https://news.yahoo.co.jp/articles/..." autofocus>
+      <p class="hint">アダルト・犯罪関連のURLはご遠慮ください</p>
+      <button id="btn-fetch-article" class="btn btn-primary" style="margin-top:.5rem;">📥 記事を取得する</button>
+    </div>
+
+    <div id="article-fetch-status" class="status-box hidden"></div>
+
+    <div id="article-text-area" class="hidden">
+      <div class="form-group">
+        <label for="article-text" id="article-text-label">📄 記事本文</label>
+        <textarea id="article-text" rows="8" maxlength="4000" placeholder="「記事を取得する」ボタンを押すと、ここに本文が自動入力されます"></textarea>
+        <p class="char-count"><span id="article-char-count">0</span>/4000</p>
+      </div>
+
+      <button id="btn-next-article" class="btn btn-primary">▶ 次へ：モデル選択</button>
+    </div>
+  </section>
+
+  <!-- ===== STEP 2: モデル選択 ===== -->
+  <section id="step-model" class="card hidden">
+    <h2>🤖 モデル選択</h2>
+
+    <div class="model-select">
+      <div class="model-card selected" data-model="gemini-3.1-flash-lite">
+        <div class="model-name">Gemini 3.1 Flash-Lite</div>
+        <div class="model-id">gemini-3.1-flash-lite</div>
+        <div class="model-pricing">
+          <span>入力 $0.25 / 1M tokens</span>
+          <span>出力 $1.50 / 1M tokens</span>
+        </div>
+        <div class="model-badge">選択可能</div>
+      </div>
+
+      <div class="model-card disabled" data-model="claude-haiku-4-5">
+        <div class="model-name">Claude Haiku 4.5</div>
+        <div class="model-id">claude-haiku-4-5</div>
+        <div class="model-pricing">
+          <span>入力 $1.00 / 1M tokens</span>
+          <span>出力 $5.00 / 1M tokens</span>
+        </div>
+        <div class="model-badge">準備中</div>
+      </div>
+
+      <div class="model-card disabled" data-model="gpt-5.6-luna">
+        <div class="model-name">GPT-5.6 Luna</div>
+        <div class="model-id">gpt-5.6-luna</div>
+        <div class="model-pricing">
+          <span>入力 $1.00 / 1M tokens</span>
+          <span>出力 $6.00 / 1M tokens</span>
+        </div>
+        <div class="model-badge">準備中</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="api-key">
+        🔑 APIキー
+        <span class="security-notice">🛡 APIキーはあなたのブラウザ内でのみ使用され、サーバーに一切送信されません</span>
+      </label>
+      <input type="password" id="api-key" placeholder="AI の APIキーを入力してください">
+      <p class="hint security-info">
+        ⚠️ APIキーはお使いのブラウザのメモリ内にのみ保持され、当サービスのサーバーには一切送信されません。
+        AIモデルの利用にはAPIキーに紐づく費用が発生します。
+      </p>
+    </div>
+
+    <button id="btn-next-model" class="btn btn-primary">▶ 次へ：ペルソナ設定</button>
+  </section>
+
+  <!-- ===== STEP 3: ペルソナ設定 ===== -->
+  <section id="step-persona" class="card hidden">
+    <h2>👥 ペルソナ設定</h2>
+
+    <div class="form-group">
+      <label for="persona-count">
+        人数: <strong id="persona-count-display">10</strong>人
+      </label>
+      <input type="range" id="persona-count" min="1" max="100" value="10" step="1">
+      <div class="range-labels">
+        <span>1</span>
+        <span>20</span>
+        <span>40</span>
+        <span>60</span>
+        <span>80</span>
+        <span>100</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>🗣 議論の傾向</label>
+      <div class="tendency-select" id="tendency-select">
+        <label class="tendency-option">
+          <input type="radio" name="tendency" value="intellectual">
+          <span class="tendency-icon">🏛️</span>
+          <span class="tendency-name">論客重視</span>
+          <span class="tendency-desc">専門家・知識人ペルソナ多め。データと引用に基づく議論</span>
+        </label>
+        <label class="tendency-option">
+          <input type="radio" name="tendency" value="casual">
+          <span class="tendency-icon">😄</span>
+          <span class="tendency-name">カジュアル</span>
+          <span class="tendency-desc">感情・ユーモア・日常感覚重視。SNSのノリ</span>
+        </label>
+        <label class="tendency-option selected">
+          <input type="radio" name="tendency" value="heated" checked>
+          <span class="tendency-icon">🔥</span>
+          <span class="tendency-name">炎上寄り</span>
+          <span class="tendency-desc">賛否が極端で論争が活発。強い口調や挑発的なコメントも含む。ドラマチックな議論</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>🌍 対象地域 <span class="hint">（複数選択可 / 未選択時は全地域から抽出）</span></label>
+      <div class="region-grid" id="region-select">
+        <label class="region-check"><input type="checkbox" name="region" value="east_asia" checked> 🇯🇵🇰🇷🇨🇳🇹🇼 東アジア</label>
+        <label class="region-check"><input type="checkbox" name="region" value="southeast_asia" checked> 🇮🇩🇹🇭🇻🇳🇵🇭 東南アジア</label>
+        <label class="region-check"><input type="checkbox" name="region" value="south_asia"> 🇮🇳🇵🇰🇧🇩🇱🇰 南アジア</label>
+        <label class="region-check"><input type="checkbox" name="region" value="middle_east"> 🇸🇦🇦🇪🇮🇷🇹🇷 中東</label>
+        <label class="region-check"><input type="checkbox" name="region" value="europe" checked> 🇬🇧🇫🇷🇩🇪🇮🇹🇪🇸 欧州</label>
+        <label class="region-check"><input type="checkbox" name="region" value="north_america" checked> 🇺🇸🇨🇦🇲🇽 北米</label>
+        <label class="region-check"><input type="checkbox" name="region" value="south_america"> 🇧🇷🇦🇷🇨🇴🇨🇱 南米</label>
+        <label class="region-check"><input type="checkbox" name="region" value="africa"> 🇳🇬🇿🇦🇰🇪🇪🇬 アフリカ</label>
+        <label class="region-check"><input type="checkbox" name="region" value="oceania"> 🇦🇺🇳🇿 オセアニア</label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input type="checkbox" id="include-japan" checked>
+        🇯🇵 日本は必ず含める
+      </label>
+    </div>
+
+    <button id="btn-next-persona" class="btn btn-primary">▶ 次へ：確認と生成</button>
+  </section>
+
+  <!-- ===== 免責事項 + 生成ボタン ===== -->
+  <section id="step-generate" class="card hidden">
+    <h2>⚠️ 免責事項と確認</h2>
+    <div class="disclaimer">
+      <ul>
+        <li>🔞 アダルト・犯罪関連の記事は禁止です</li>
+        <li>🛡 <strong>APIキーはサーバーに一切送信されません</strong>（ブラウザ内でのみ使用）</li>
+        <li>💰 APIキーを通じてAIモデル利用料金が発生します（推定費用: <strong id="cost-estimate">計算中...</strong>）</li>
+        <li>� 生成結果はブラウザ内でのみ表示され、サーバーには保存されません</li>
+        <li>🤖 すべてのコメントはAIによって生成されたものです</li>
+        <li>⚠️ 生成内容の正確性・品質は保証されません</li>
+      </ul>
+    </div>
+
+    <button id="btn-generate" class="btn btn-generate">🚀 コメント生成を開始する</button>
+  </section>
+
+  <!-- ===== 生成中プログレス ===== -->
+  <section id="step-progress" class="card hidden">
+    <h2>🤖 AI討論生成中...</h2>
+    <div class="progress-bar-container">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <p class="progress-text" id="progress-text">準備中...</p>
+    <div id="live-comments" class="live-comments"></div>
+  </section>
+
+  <!-- ===== 完了 ===== -->
+  <section id="step-complete" class="card hidden">
+    <h2>✅ 生成完了！</h2>
+    <p class="hint" style="margin-bottom:1rem;">結果はブラウザ内でのみ表示されます。サーバーには保存されません。</p>
+    <div id="complete-info"></div>
+  </section>
+
+  <!-- ===== エラー表示 ===== -->
+  <section id="step-error" class="card error-card hidden">
+    <h2>❌ エラーが発生しました</h2>
+    <div id="error-message"></div>
+    <button id="btn-retry" class="btn btn-secondary">🔄 最初からやり直す</button>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>comment-channel — AI-generated diverse perspectives on news articles.</p>
+  <p class="notice">すべてのコメントはAIによって生成されています。</p>
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="personas/country-data.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/personas.js"></script>
+<script src="js/comments.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
