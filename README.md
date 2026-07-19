@@ -26,7 +26,7 @@
 
 ---
 
-## � Google検索グラウンディング（Gemini 2.5 Flash-Lite）
+## 🔍 Google検索グラウンディング（Gemini 2.5 Flash-Lite）
 
 **2026-07-19 追加**
 
@@ -49,7 +49,7 @@ Step 2（モデル選択）→ Step 3（ペルソナ設定）遷移時に、Gemi
 
 ---
 
-## �🔒 セキュリティ
+## 🔒 セキュリティ
 
 | 対策 | 内容 |
 |---|---|
@@ -158,3 +158,15 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 - APIキーはブラウザ内でのみ使用され、サーバーには一切送信されません
 - 生成結果はブラウザ内でのみ表示され、サーバーには保存されません
 - コメントの正確性・品質は保証されません
+
+---
+
+## 📜 開発記録
+
+本プロジェクトの初期設計・開発はDeepSeek V4 Proとの対話を通じて行われました。
+詳細なやりとりは [prompt_history/20260718-deepseek-v4-pro.txt](prompt_history/20260718-deepseek-v4-pro.txt) を参照してください。
+
+## 📜 開発記録
+
+本プロジェクトの初期設計・開発はDeepSeek V4 Proとの対話を通じて行われました。
+詳細なやりとりは [prompt_history/20260718-deepseek-v4-pro.txt](prompt_history/20260718-deepseek-v4-pro.txt) を参照してください。
