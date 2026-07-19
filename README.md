@@ -165,8 +165,3 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 
 本プロジェクトの初期設計・開発はDeepSeek V4 Proとの対話を通じて行われました。
 詳細なやりとりは [prompt_history/20260718-deepseek-v4-pro.txt](prompt_history/20260718-deepseek-v4-pro.txt) を参照してください。
-
-## 📜 開発記録
-
-本プロジェクトの初期設計・開発はDeepSeek V4 Proとの対話を通じて行われました。
-詳細なやりとりは [prompt_history/20260718-deepseek-v4-pro.txt](prompt_history/20260718-deepseek-v4-pro.txt) を参照してください。
