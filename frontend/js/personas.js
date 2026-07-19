@@ -62,8 +62,14 @@ function selectCountries(regionKeys, includeJapan, count) {
 }
 
 // ペルソナ一覧をLLMで生成
-async function generatePersonas(apiKey, count, tendency, countries, articleContext) {
+async function generatePersonas(apiKey, count, tendency, countries, articleContext, backgroundContext = null) {
   const preset = TENDENCY_PRESETS[tendency] || TENDENCY_PRESETS.balanced;
+
+  // 背景情報がある場合はプロンプトに追加
+  let bgSection = '';
+  if (backgroundContext) {
+    bgSection = `\n## この記事に関する背景情報（Google検索による補足）\n- 背景: ${backgroundContext.background || 'なし'}\n- 論点: ${backgroundContext.publicOpinion || 'なし'}\n- 最近の動向: ${backgroundContext.recentDevelopments || 'なし'}\n${(backgroundContext.relatedFacts || []).map((f, i) => `- 関連事実${i + 1}: ${f}`).join('\n')}`;
+  }
 
   const systemPrompt = `あなたは多様なペルソナを生成する専門家です。
 以下の条件に従って、${count}人分のペルソナ（人格）をJSON配列で生成してください。
@@ -74,6 +80,8 @@ async function generatePersonas(apiKey, count, tendency, countries, articleConte
 
 ## 各国の割り当て（各ペルソナに割り当てる国）
 ${countries.map((c, i) => `${i + 1}. ${c.flag} ${c.name} (${c.nameEn})`).join('\n')}
+
+${bgSection}
 
 ## 出力形式（厳守）
 以下のJSON配列のみを返してください。説明文は不要です。

@@ -13,6 +13,7 @@ const state = {
   includeJapan: true,
   personas: [],
   currentStep: 'input',
+  backgroundContext: null,  // Google Search Groundingの結果
 };
 
 // ===== 初期化 =====
@@ -69,11 +70,14 @@ function initApp() {
   $('btn-next-persona').addEventListener('click', handleNextPersona);
   $('btn-generate').addEventListener('click', handleGenerate);
   $('btn-retry').addEventListener('click', resetApp);
-  $('btn-view-page').addEventListener('click', () => {
-    if (state.publishedUrl) {
-      window.open(state.publishedUrl, '_blank');
-    }
-  });
+  const btnView = $('btn-view-page');
+  if (btnView) {
+    btnView.addEventListener('click', () => {
+      if (state.publishedUrl) {
+        window.open(state.publishedUrl, '_blank');
+      }
+    });
+  }
 
   updateRegions();
 }
@@ -150,6 +154,10 @@ async function handleFetchArticle() {
     showStatus('article-fetch-status',
       `✅ 記事を取得しました: ${state.articleTitle || '無題'} (${state.articleText.length}文字)`, 'success');
 
+    // テキストエリア＋次へボタンを表示
+    show('article-text-area');
+    $('btn-next-article').scrollIntoView({ behavior: 'smooth', block: 'center' });
+
   } catch (err) {
     console.error('記事取得エラー:', err);
     // 取得失敗：手動入力を促す
@@ -167,6 +175,48 @@ async function handleFetchArticle() {
   }
 }
 
+// Google Search Grounding: 記事の背景情報をWEB検索で取得
+// handleNextModel() から呼ばれる（APIキー確定後、Step 2→3 の遷移時）
+async function fetchBackgroundContext() {
+  if (!state.apiKey || !state.articleText) return;
+
+  // 背景情報コンテナ（step-persona 内）にローディング表示
+  const bgContainer = $('background-context');
+  if (!bgContainer) return;
+
+  bgContainer.innerHTML = '<div class="bg-loading">🔍 Google検索で記事の背景情報を調査中...（Gemini 2.5 Flash-Lite）<span class="loading-dot"></span></div>';
+  show('background-context');
+
+  try {
+    const bg = await searchGoogleGrounding(state.apiKey, state.articleTitle, state.articleText);
+    state.backgroundContext = bg;
+
+    // 結果表示
+    const sourcesHtml = bg.sources && bg.sources.length > 0
+      ? bg.sources.slice(0, 5).map(s =>
+          `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener" class="bg-source-link">🔗 ${escapeHtml(s.title || s.url)}</a>`
+        ).join('')
+      : '';
+
+    bgContainer.innerHTML = `
+      <div class="bg-result">
+        <div class="bg-header">🔍 Google検索による背景情報 <span class="hint">(Gemini 2.5 Flash-Lite)</span></div>
+        ${bg.background ? `<div class="bg-section"><span class="bg-label">📖 背景</span><p>${escapeHtml(bg.background)}</p></div>` : ''}
+        ${bg.publicOpinion ? `<div class="bg-section"><span class="bg-label">💬 論点</span><p>${escapeHtml(bg.publicOpinion)}</p></div>` : ''}
+        ${bg.recentDevelopments ? `<div class="bg-section"><span class="bg-label">📰 最近の動向</span><p>${escapeHtml(bg.recentDevelopments)}</p></div>` : ''}
+        ${bg.relatedFacts && bg.relatedFacts.length > 0 ? `<div class="bg-section"><span class="bg-label">📌 関連事実</span><ul>${bg.relatedFacts.map(f => `<li>${escapeHtml(f)}</li>`).join('')}</ul></div>` : ''}
+        ${sourcesHtml ? `<div class="bg-sources">${sourcesHtml}</div>` : ''}
+        <div class="bg-tokens">🔎 検索トークン: 入${bg.tokens.input.toLocaleString()} / 出${bg.tokens.output.toLocaleString()}</div>
+      </div>
+    `;
+
+  } catch (err) {
+    console.warn('背景情報の取得に失敗（スキップします）:', err);
+    state.backgroundContext = null;
+    bgContainer.innerHTML = '<div class="bg-loading bg-failed">⚠️ 背景情報の取得に失敗しました。このままコメント生成を続行できます。</div>';
+  }
+}
+
 // ===== ステップ遷移ハンドラ =====
 function handleNextModel() {
   const apiKey = $('api-key').value.trim();
@@ -177,6 +227,9 @@ function handleNextModel() {
   state.apiKey = apiKey;
   showStep('step-persona');
   updateCostEstimate();
+
+  // Google Search Grounding: 背景情報を非同期で取得（APIキーが確定したタイミング）
+  fetchBackgroundContext();
 }
 
 function handleNextPersona() {
@@ -205,7 +258,8 @@ async function handleGenerate() {
     // Step 1: ペルソナ生成
     const countries = selectCountries(state.regions, state.includeJapan, state.personaCount);
     state.personas = await generatePersonas(
-      state.apiKey, state.personaCount, state.tendency, countries, state.articleText
+      state.apiKey, state.personaCount, state.tendency, countries, state.articleText,
+      state.backgroundContext
     );
 
     updateProgress(0, state.personaCount, `${state.personas.length}人のペルソナを生成しました。コメント生成を開始...`);
@@ -213,7 +267,7 @@ async function handleGenerate() {
     // Step 2: コメント生成（プログレスコールバック付き）
     const result = await generateAllComments(
       state.apiKey, state.personas, state.articleText,
-      onCommentProgress
+      onCommentProgress, state.backgroundContext
     );
 
     updateProgress(state.personaCount, state.personaCount,
@@ -352,9 +406,9 @@ function showComplete(commentsResult, cost) {
        (入${cost.totalInputTokens.toLocaleString()} / 出${cost.totalOutputTokens.toLocaleString()} tokens)</p>
     ${summarySection}
     <div class="result-comments-container">${commentsHtml}</div>
-    <div style="margin-top:1rem;text-align:center;">
+    <div style="margin-top:1rem;display:flex;justify-content:center;gap:.5rem;flex-wrap:nowrap;">
       <button id="btn-copy-html" class="btn btn-primary">📋 HTMLをコピー</button>
-      <button id="btn-download-html" class="btn btn-secondary" style="margin-left:.5rem;">💾 HTMLをダウンロード</button>
+      <button id="btn-download-html" class="btn btn-secondary">💾 HTMLをダウンロード</button>
     </div>
   `;
 
@@ -413,6 +467,7 @@ function resetApp() {
   state.apiKey = '';
   state.personas = [];
   state.generatedHtml = null;
+  state.backgroundContext = null;
 
   $('article-url').value = '';
   $('article-text').value = '';
@@ -424,7 +479,7 @@ function resetApp() {
 
   hide('article-text-area');
   hideStatus('article-fetch-status');
-  hide('btn-view-page');
+  hide('background-context');
 
   showStep('step-input');
   $('article-url').focus();

@@ -123,6 +123,7 @@ input:focus, textarea:focus {
   cursor: pointer;
   transition: all .15s;
   font-family: inherit;
+  white-space: nowrap;  /* ボタン内テキスト折り返し防止（スマホ対策） */
 }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn-primary { background: var(--accent); color: #fff; }
@@ -368,3 +369,22 @@ input[type="range"]::-webkit-slider-thumb {
 .result-comment .replies { margin-top: .3rem; margin-left: 1rem; padding-left: .6rem; border-left: 2px solid #e5e7eb; }
 .result-comment .reply { font-size: .78rem; color: #4b5563; margin-bottom: .2rem; }
 .result-comment .reply-nick { font-weight: 600; color: #4f46e5; }
+
+/* ===== Google Search Grounding 背景情報 ===== */
+#background-context { margin-top: 1rem; }
+.bg-loading { text-align: center; padding: 1rem; color: #6c757d; font-size: .85rem; }
+.bg-failed { color: #ef4444; }
+.bg-result { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius); padding: 1rem; }
+.bg-header { font-weight: 700; font-size: .85rem; color: #166534; margin-bottom: .6rem; }
+.bg-header .hint { font-weight: 400; color: #6c757d; font-size: .7rem; }
+.bg-section { margin-bottom: .5rem; }
+.bg-label { font-weight: 600; font-size: .75rem; color: var(--accent); display: block; margin-bottom: .15rem; }
+.bg-section p { font-size: .82rem; color: #1a1a2e; line-height: 1.5; margin: 0; }
+.bg-section ul { margin: .2rem 0 0 1.2rem; font-size: .8rem; }
+.bg-section li { margin-bottom: .15rem; }
+.bg-sources { margin-top: .6rem; display: flex; flex-wrap: wrap; gap: .3rem; }
+.bg-source-link { font-size: .7rem; color: var(--accent); text-decoration: none; background: #eef2ff; padding: .15rem .4rem; border-radius: 4px; display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bg-source-link:hover { text-decoration: underline; }
+.bg-tokens { font-size: .65rem; color: #9ca3af; margin-top: .5rem; text-align: right; }
+.loading-dot { display: inline-block; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: blink 1s infinite; margin-left: 4px; vertical-align: middle; }
+@keyframes blink { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }

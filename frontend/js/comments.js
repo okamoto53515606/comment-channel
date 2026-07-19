@@ -5,7 +5,7 @@ let allComments = [];
 let totalUsage = { inputTokens: 0, outputTokens: 0 };
 
 // 1ペルソナのコメント生成
-async function generateCommentForPersona(apiKey, persona, articleText, allPreviousComments) {
+async function generateCommentForPersona(apiKey, persona, articleText, allPreviousComments, backgroundContext = null) {
   // 他の全コメントをコンテキストとして整形
   const contextComments = allPreviousComments.slice(-30); // 最新30件のみ（トークン節約）
 
@@ -45,6 +45,7 @@ async function generateCommentForPersona(apiKey, persona, articleText, allPrevio
 
 ## 記事
 ${articleText.substring(0, 4000)}
+${backgroundContext ? `\n## 参考：背景情報（Google検索による補足）\n- 背景: ${backgroundContext.background || 'なし'}\n- 論点: ${backgroundContext.publicOpinion || 'なし'}\n${(backgroundContext.relatedFacts || []).map(f => `- 関連事実: ${f}`).join('\n')}` : ''}
 ${contextText}
 ## 指示
 あなたのペルソナとして、この記事に対するコメントを書いてください。
@@ -123,7 +124,7 @@ ${articleText.substring(0, 2000)}
 }
 
 // 全ペルソナのコメント生成を順次実行（ライブプログレス付き）
-async function generateAllComments(apiKey, personas, articleText, progressCallback) {
+async function generateAllComments(apiKey, personas, articleText, progressCallback, backgroundContext = null) {
   allComments = [];
   totalUsage = { inputTokens: 0, outputTokens: 0 };
   const totalPersonas = personas.length;
@@ -134,7 +135,7 @@ async function generateAllComments(apiKey, personas, articleText, progressCallba
 
     // コメント生成
     const commentData = await generateCommentForPersona(
-      apiKey, persona, articleText, allComments
+      apiKey, persona, articleText, allComments, backgroundContext
     );
 
     const commentEntry = {
