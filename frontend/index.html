@@ -114,22 +114,22 @@
       <label>🗣 議論の傾向</label>
       <div class="tendency-select" id="tendency-select">
         <label class="tendency-option">
-          <input type="radio" name="tendency" value="intellectual">
-          <span class="tendency-icon">🏛️</span>
-          <span class="tendency-name">論客重視</span>
-          <span class="tendency-desc">専門家・知識人ペルソナ多め。データと引用に基づく議論</span>
+          <input type="radio" name="tendency" value="reddit">
+          <span class="tendency-icon">🤖</span>
+          <span class="tendency-name">Reddit風</span>
+          <span class="tendency-desc">知的×カジュアル。upvote/downvote文化。皮肉やミーム交じりの議論。冷静な分析派と熱血派が混在</span>
         </label>
         <label class="tendency-option">
-          <input type="radio" name="tendency" value="casual">
-          <span class="tendency-icon">😄</span>
-          <span class="tendency-name">カジュアル</span>
-          <span class="tendency-desc">感情・ユーモア・日常感覚重視。SNSのノリ</span>
+          <input type="radio" name="tendency" value="2ch">
+          <span class="tendency-icon">🗿</span>
+          <span class="tendency-name">2ちゃんねる風</span>
+          <span class="tendency-desc">匿名掲示板のノリ。荒らし・煽り・祭り。スラング満載の無法地帯。たまに鋭い考察も</span>
         </label>
         <label class="tendency-option selected">
-          <input type="radio" name="tendency" value="heated" checked>
-          <span class="tendency-icon">🔥</span>
-          <span class="tendency-name">炎上寄り</span>
-          <span class="tendency-desc">賛否が極端で論争が活発。強い口調や挑発的なコメントも含む。ドラマチックな議論</span>
+          <input type="radio" name="tendency" value="yahoo" checked>
+          <span class="tendency-icon">😤</span>
+          <span class="tendency-name">Yahooコメント風</span>
+          <span class="tendency-desc">説教・上から目線・ご意見番。感情的ブチギレと冷静な正論が入り乱れる。AI要約つき</span>
         </label>
       </div>
     </div>
@@ -140,7 +140,7 @@
         <label class="region-check"><input type="checkbox" name="region" value="east_asia" checked> 🇯🇵🇰🇷🇨🇳🇹🇼 東アジア</label>
         <label class="region-check"><input type="checkbox" name="region" value="southeast_asia" checked> 🇮🇩🇹🇭🇻🇳🇵🇭 東南アジア</label>
         <label class="region-check"><input type="checkbox" name="region" value="south_asia"> 🇮🇳🇵🇰🇧🇩🇱🇰 南アジア</label>
-        <label class="region-check"><input type="checkbox" name="region" value="middle_east"> 🇸🇦🇦🇪🇮🇷🇹🇷 中東</label>
+        <label class="region-check"><input type="checkbox" name="region" value="middle_east" checked> 🇸🇦🇦🇪🇮🇷🇹🇷 中東</label>
         <label class="region-check"><input type="checkbox" name="region" value="europe" checked> 🇬🇧🇫🇷🇩🇪🇮🇹🇪🇸 欧州</label>
         <label class="region-check"><input type="checkbox" name="region" value="north_america" checked> 🇺🇸🇨🇦🇲🇽 北米</label>
         <label class="region-check"><input type="checkbox" name="region" value="south_america"> 🇧🇷🇦🇷🇨🇴🇨🇱 南米</label>
@@ -156,7 +156,7 @@
       </label>
     </div>
 
-    <div id="background-context" class="hidden"></div>
+    <div id="background-context" class="hidden" style="margin-bottom:1.25rem;"></div>
 
     <button id="btn-next-persona" class="btn btn-primary">▶ 次へ：確認と生成</button>
   </section>

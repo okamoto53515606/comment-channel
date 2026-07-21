@@ -8,8 +8,8 @@ const state = {
   articleSource: '',
   apiKey: '',
   personaCount: 10,
-  tendency: 'heated',
-  regions: ['east_asia', 'southeast_asia', 'europe', 'north_america'],
+  tendency: 'yahoo',
+  regions: ['east_asia', 'southeast_asia', 'middle_east', 'europe', 'north_america'],
   includeJapan: true,
   personas: [],
   currentStep: 'input',
@@ -267,16 +267,18 @@ async function handleGenerate() {
     // Step 2: コメント生成（プログレスコールバック付き）
     const result = await generateAllComments(
       state.apiKey, state.personas, state.articleText,
-      onCommentProgress, state.backgroundContext
+      onCommentProgress, state.backgroundContext, state.tendency
     );
 
     updateProgress(state.personaCount, state.personaCount,
       `全${result.comments.length}件のコメント、${result.comments.reduce((s, c) => s + c.replies.length, 0)}件の返信を生成しました`);
 
-    // Step 3: AI要約生成
-    updateProgress(state.personaCount, state.personaCount, 'AI要約を生成中...');
-    const summary = await generateSummary(state.apiKey, result.comments, state.articleText);
-    result.summary = summary;
+    // Step 3: AI要約生成（Yahooコメント風の場合のみ）
+    if (state.tendency === 'yahoo') {
+      updateProgress(state.personaCount, state.personaCount, 'AI要約を生成中...');
+      const summary = await generateSummary(state.apiKey, result.comments, state.articleText);
+      result.summary = summary;
+    }
 
     // 完了表示（ブラウザ内で結果を表示）
     const actualCost = calcActualCost(result.usage.inputTokens, result.usage.outputTokens);
@@ -397,7 +399,7 @@ function showComplete(commentsResult, cost) {
   const summarySection = summary ? `<div class="result-summary"><h3>🤖 AI要約</h3><p>${escapeHtml(summary)}</p></div>` : '';
 
   // 完成HTML生成（コピー用）
-  state.generatedHtml = buildFullHtml(comments, summary, commentsResult.usage);
+  state.generatedHtml = buildFullHtml(comments, summary, commentsResult.usage, state.tendency);
 
   const info = $('complete-info');
   info.innerHTML = `
@@ -433,27 +435,72 @@ function showComplete(commentsResult, cost) {
   });
 }
 
-function buildFullHtml(comments, summary, usage) {
+function buildFullHtml(comments, summary, usage, tendency = 'yahoo') {
   const commentsHtml = comments.map((c,i) => {
     const p = c.persona;
     let r = '';
     (c.replies||[]).forEach(rp => {
       r += `<div class="reply"><span class="reply-nickname">${escapeHtml(rp.persona.countryFlag||'')} ${escapeHtml(rp.persona.nickname)}</span> ↪ ${escapeHtml(rp.replyToNickname||'')}<br>${escapeHtml(rp.comment)}</div>`;
     });
-    return `<div class="comment"><div class="comment-header">🤖 <strong>${escapeHtml(p.countryFlag||'')} ${escapeHtml(p.nickname)}</strong> (${escapeHtml(p.countryName||'')}, ${escapeHtml(p.occupation||'')}) #${i+1}</div><div class="comment-body">${escapeHtml(c.comment)}</div>${r}</div>`;
+
+    // 掲示板別のコメント表示
+    if (tendency === 'reddit') {
+      return `<div class="comment"><div class="comment-header"><span class="vote-arrows">▲ ▼</span>🤖 <strong>u/${escapeHtml(p.nickname)}</strong> <span style="color:#787c7e;font-size:.7rem;">(${escapeHtml(p.countryFlag||'')} ${escapeHtml(p.countryName||'')}, ${escapeHtml(p.occupation||'')})</span></div><div class="comment-body">${escapeHtml(c.comment)}</div>${r}</div>`;
+    } else if (tendency === '2ch') {
+      return `<div class="comment"><div class="comment-header"><span class="comment-number">${i+1}.</span> <strong>${escapeHtml(p.nickname)}</strong>${escapeHtml(p.countryFlag||'')} <span style="color:#666;font-size:.7rem;">(${escapeHtml(p.occupation||'')})</span></div><div class="comment-body">${escapeHtml(c.comment)}</div>${r}</div>`;
+    } else {
+      // Yahooコメント風
+      return `<div class="comment"><div class="comment-header">🤖 <strong>${escapeHtml(p.nickname)}</strong> <span style="color:#999;font-size:.7rem;">(${escapeHtml(p.countryFlag||'')} ${escapeHtml(p.countryName||'')}, ${escapeHtml(p.occupation||'')})</span></div><div class="comment-body">${escapeHtml(c.comment)}</div><div class="yahoo-actions"><span>👍 そう思う 0</span><span>👎 そう思わない 0</span><span>💬 返信</span></div>${r}</div>`;
+    }
   }).join('');
 
-  const summaryHtml = summary ? `<div class="summary-box"><h3>🤖 AI要約</h3><p>${escapeHtml(summary)}</p></div>` : '';
+  const summaryHtml = (tendency === 'yahoo' && summary) ? `<div class="summary-box"><h3>🤖 AI要約</h3><p>${escapeHtml(summary)}</p></div>` : '';
 
-  return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>comment-channel</title>
+  // 掲示板別テーマ
+  const themeMap = {
+    reddit: 'reddit-theme',
+    '2ch': 'twoch-theme',
+    yahoo: 'yahoo-theme',
+  };
+  const themeClass = themeMap[tendency] || 'yahoo-theme';
+
+  // 掲示板別タイトル
+  const titleMap = {
+    reddit: '🧠 r/news — AI-generated discussion',
+    '2ch': '【AI生成】ニュース速報板★1',
+    yahoo: '💬 comment-channel — Yahooコメント風',
+  };
+  const pageTitle = titleMap[tendency] || titleMap.yahoo;
+
+  // 掲示板別の注意書き
+  const noticeMap = {
+    reddit: '⚠️ All comments are AI-generated. Not real Reddit content.',
+    '2ch': '⚠️ 以下の書き込みは全てAIによって生成されたものです。実在の人物・団体とは一切関係ありません。',
+    yahoo: '⚠️ すべてのコメントはAIによって生成されたものです。',
+  };
+  const aiNotice = noticeMap[tendency] || noticeMap.yahoo;
+
+  // 掲示板別CSS
+  const extraCss = tendency === 'reddit' ? `
+.vote-arrows{color:#878a8c;font-size:.85rem;margin-right:4px;cursor:default}
+` : tendency === '2ch' ? `
+.comment-number{color:#00c;margin-right:4px}
+body{font-family:"MS PGothic","IPAGothic",sans-serif}
+` : `
+.yahoo-actions{color:#999;font-size:.75rem;margin-top:4px}
+.yahoo-actions span{margin-right:12px;cursor:default}
+`;
+
+  return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${escapeHtml(pageTitle)}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;background:#f8f9fa;color:#1a1a2e;line-height:1.7;padding:1rem;max-width:720px;margin:0 auto}
 h1{font-size:1.3rem;margin-bottom:.5rem}.ai-notice{background:#fef3c7;padding:.5rem;text-align:center;font-size:.8rem;margin-bottom:1rem}
 .summary-box{background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:.8rem;margin:1rem 0}
 .comment{background:#fff;border-radius:8px;padding:.8rem;margin-bottom:.6rem;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .comment-header{margin-bottom:.3rem;font-size:.8rem;color:#4f46e5}.comment-body{font-size:.9rem}
 .reply{margin-left:1rem;padding:.4rem;border-left:2px solid #e5e7eb;font-size:.8rem;margin-top:.3rem}.reply-nickname{color:#4f46e5;font-weight:600}
+${extraCss}
 footer{text-align:center;font-size:.7rem;color:#9ca3af;margin-top:2rem;padding-top:1rem;border-top:1px solid #e5e7eb}</style></head>
-<body><h1>💬 comment-channel</h1><div class="ai-notice">⚠️ すべてのコメントはAIによって生成されたものです。</div>
+<body class="${themeClass}"><h1>💬 ${escapeHtml(pageTitle)}</h1><div class="ai-notice">${aiNotice}</div>
 ${summaryHtml}<p style="color:#6c757d;text-align:center">💬 ${comments.length}件 | 返信 ${comments.reduce((s,c)=>s+(c.replies||[]).length,0)}件</p>
 ${commentsHtml}<div class="ai-notice" style="background:#fef2f2;border:1px solid #fecaca;margin-top:1rem">🤖 以上のコメントはすべてAI生成です。</div>
 <footer>comment-channel — AI-generated diverse perspectives</footer></body></html>`;

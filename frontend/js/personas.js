@@ -2,30 +2,23 @@
 
 // 傾向プリセット
 const TENDENCY_PRESETS = {
-  balanced: {
-    name: 'バランス型',
-    description: '賛成・反対・中立が均等。多様な年齢・職業・立場のペルソナを生成。冷静な議論を重視。',
-    stanceDistribution: { agree: 30, disagree: 30, neutral: 25, emotional: 10, humorous: 5 },
+  reddit: {
+    name: 'Reddit風',
+    description: '知的×カジュアルなReddit住人のノリ。皮肉・ミーム・ソース要求。冷静な分析派と熱狂的なオピニオンリーダーが混在し、upvote争いで対立が激化。口調はcasualで知的ながらも時に辛辣。',
+    stanceDistribution: { agree: 15, disagree: 25, neutral: 10, emotional: 20, humorous: 15, academic: 10, provocative: 5 },
+    toneGuide: 'Redditのサブレディット（r/newsやr/worldnews）のコメント欄のような口調。くだけた英語由来の表現（OP、TL;DR、this、sauceなど）を自然に交えつつ、日本語で書く。冷静にデータを出す人と、熱く持論をぶつける人が共存。',
   },
-  intellectual: {
-    name: '論客重視',
-    description: '専門家・知識人ペルソナ多め。データや歴史的事例、学術的引用を含む深い議論。',
-    stanceDistribution: { agree: 25, disagree: 35, neutral: 15, emotional: 10, humorous: 5, academic: 10 },
+  '2ch': {
+    name: '2ちゃんねる風',
+    description: '匿名掲示板の無法地帯。荒らし・煽り・祭り・コピペ。スラング（ワロタ・草・それな・は？など）満載。だが時折、異常に詳しい住人が鋭い考察をぶち込む。感情的な喧嘩と冷静なツッコミが入り乱れる。',
+    stanceDistribution: { agree: 10, disagree: 25, neutral: 5, emotional: 30, humorous: 20, provocative: 10 },
+    toneGuide: '2ちゃんねる（5ちゃんねる）のニュース速報板のような口調。ため口・タメ語が基本。名無しさんのような匿名感。煽り・嘲笑・便乗が飛び交うが、たまにガチ勢が長文で解説をぶち込む。AA（アスキーアート）やコピペのノリも可。',
   },
-  casual: {
-    name: 'カジュアル',
-    description: '感情・ユーモア・日常感覚重視のコメント。SNSのゆるいノリ。軽快で親しみやすい。',
-    stanceDistribution: { agree: 25, disagree: 20, neutral: 15, emotional: 20, humorous: 20 },
-  },
-  heated: {
-    name: '炎上寄り',
-    description: '賛否が極端で論争が活発。強い口調や挑発的なコメントも含む。ドラマチックな議論。',
-    stanceDistribution: { agree: 20, disagree: 30, neutral: 10, emotional: 30, humorous: 5, provocative: 5 },
-  },
-  empathetic: {
-    name: '共感重視',
-    description: '他者のコメントに寄り添い、返信を積極的に行う。建設的で思いやりのある議論。',
-    stanceDistribution: { agree: 35, disagree: 15, neutral: 20, emotional: 15, humorous: 5, supportive: 10 },
+  yahoo: {
+    name: 'Yahooコメント風',
+    description: 'Yahoo!ニュースのコメント欄そのもの。説教・上から目線・ご意見番・人生語り。感情的ブチギレおじさんと、冷静に正論を述べる常識人が激突。AI要約つき。',
+    stanceDistribution: { agree: 15, disagree: 25, neutral: 10, emotional: 25, humorous: 5, provocative: 15, academic: 5 },
+    toneGuide: 'Yahoo!ニュースのコメント欄のような口調。「〜だと思う」「〜すべき」「苦笑」「呆れ」などが頻出。ですます調とため口が混在。説教くさい常識人、感情的すぎる人、やたらと体験談を語る人など。高評価を集める「そう思う」ボタンを意識したコメント。',
   },
 };
 
@@ -71,17 +64,55 @@ async function generatePersonas(apiKey, count, tendency, countries, articleConte
     bgSection = `\n## この記事に関する背景情報（Google検索による補足）\n- 背景: ${backgroundContext.background || 'なし'}\n- 論点: ${backgroundContext.publicOpinion || 'なし'}\n- 最近の動向: ${backgroundContext.recentDevelopments || 'なし'}\n${(backgroundContext.relatedFacts || []).map((f, i) => `- 関連事実${i + 1}: ${f}`).join('\n')}`;
   }
 
+  // stanceの分布から割り当てを生成（感情的な人と冷静な人の両方を確保）
+  const stancePool = [];
+  for (const [stance, ratio] of Object.entries(preset.stanceDistribution)) {
+    const n = Math.round(count * ratio / 100);
+    for (let i = 0; i < n; i++) stancePool.push(stance);
+  }
+  // 不足分をランダム補完
+  while (stancePool.length < count) {
+    const stances = Object.keys(preset.stanceDistribution);
+    stancePool.push(stances[Math.floor(Math.random() * stances.length)]);
+  }
+  // シャッフル
+  for (let i = stancePool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [stancePool[i], stancePool[j]] = [stancePool[j], stancePool[i]];
+  }
+  // 少なくとも20%は冷静系（academic/neutral/agreeの一部）を確保
+  const calmStances = ['academic', 'neutral'];
+  const minCalm = Math.max(2, Math.floor(count * 0.2));
+  for (let i = 0; i < Math.min(minCalm, count); i++) {
+    stancePool[i] = calmStances[Math.floor(Math.random() * calmStances.length)];
+  }
+  // 再度シャッフル
+  for (let i = stancePool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [stancePool[i], stancePool[j]] = [stancePool[j], stancePool[i]];
+  }
+
   const systemPrompt = `あなたは多様なペルソナを生成する専門家です。
 以下の条件に従って、${count}人分のペルソナ（人格）をJSON配列で生成してください。
 
 ## 議論の傾向
 - 傾向: ${preset.name}
 - 説明: ${preset.description}
+- 口調ガイド: ${preset.toneGuide}
 
 ## 各国の割り当て（各ペルソナに割り当てる国）
 ${countries.map((c, i) => `${i + 1}. ${c.flag} ${c.name} (${c.nameEn})`).join('\n')}
 
 ${bgSection}
+
+## stance割り当て（この順に従うこと）
+${stancePool.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+## 重要な指示
+- 感情的なペルソナと冷静なペルソナをバランスよく混ぜてください。どちらかに偏らないこと。
+- 感情的なペルソナ同士、または感情的なペルソナと冷静なペルソナが対立する構図を作りやすい人格設定にしてください。
+- 喧嘩腰の議論が生まれるように、互いに反発しそうな性格・立場のペルソナを意識的に含めてください。
+- ニックネームは掲示板の雰囲気に合ったものにしてください。
 
 ## 出力形式（厳守）
 以下のJSON配列のみを返してください。説明文は不要です。
@@ -105,11 +136,14 @@ ${bgSection}
 ## 記事内容（先頭部分）
 ${articleContext.substring(0, 3000)}
 
+## 口調の指示
+${preset.toneGuide}
+
 ## 注意
-- ニックネームは創造的で現実的なものにしてください
-- 国籍と人格に一貫性を持たせてください
-- 様々な年齢層、職業を含めてください
-- stanceは割り当てられた国の文化的背景を考慮してください`;
+- ニックネームは掲示板の雰囲気に合った創造的なものにしてください
+- 感情的なペルソナと冷静なペルソナの両方を必ず含めてください（どちらかに偏らないこと）
+- 互いに対立しそうな性格のペルソナを入れて、喧嘩腰の議論を生みやすくしてください
+- stanceは指定された順に従ってください`;
 
   const result = await callGemini(apiKey, systemPrompt, userPrompt, {
     temperature: 1.0,
