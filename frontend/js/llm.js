@@ -150,12 +150,6 @@ async function callOpenAI(apiKey, systemPrompt, userPrompt, options = {}) {
     }
   }
 
-  // デバッグ: レスポンス構造を確認（本番テスト後削除予定）
-  console.debug('[callOpenAI] raw output types:', (data.output || []).map(o => o.type));
-  console.debug('[callOpenAI] messages count:', messages.length);
-  console.debug('[callOpenAI] lastMessage content types:', lastMessage?.content?.map(c => c.type));
-  console.debug('[callOpenAI] extracted text length:', text.length, 'preview:', text.substring(0, 80));
-
   // URL引用（annotations）からソースを抽出
   const sources = annotations
     .filter(a => a.type === 'url_citation')
@@ -238,13 +232,23 @@ ${articleText.substring(0, 3000)}
 
   const data = await resp.json();
 
-  // 最後のメッセージからテキストを抽出
+  // 最後のメッセージからテキストを抽出（output_text を全探索）
   const messages = (data.output || []).filter(item => item.type === 'message');
   const lastMessage = messages[messages.length - 1];
-  const text = lastMessage?.content?.[0]?.text || '';
+
+  let text = '';
+  let annotations = [];
+  if (lastMessage?.content) {
+    for (const part of lastMessage.content) {
+      if (part.type === 'output_text' && part.text) {
+        text = part.text;
+        annotations = part.annotations || [];
+        break;
+      }
+    }
+  }
 
   // URL引用からソースを抽出
-  const annotations = lastMessage?.content?.[0]?.annotations || [];
   const sources = annotations
     .filter(a => a.type === 'url_citation')
     .map(a => ({ url: a.url, title: a.title || '' }));

@@ -72,7 +72,7 @@ Web検索を実行し、以下を自動取得する：
 | モデル | 費用 | 備考 |
 |---|---|---|
 | GPT-5.6-luna | 入力 $0.20 / 出力 $1.20 / 1M tokens | コメント生成と同じモデル（2026-07-30より80%OFF） |
-| web_search ツール | Responses API に内蔵 | 追加費用なし |
+| web_search ツール | Responses API に内蔵 | モデルのトークン料金に含まれる（別途検索API費用は不要）。詳細は公式ドキュメントを参照 |
 
 - 内部的に reasoning → 検索 → reasoning → … → 回答 のマルチステップ
 - 複数回の検索＋ページ開封で深い調査が可能（その分低速）
@@ -152,7 +152,7 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 ## 🎮 使い方
 
 1. **記事URLを入力** → 「記事を取得する」ボタン
-2. **APIキーを入力**（Gemini APIキー、ブラウザ内のみで使用）
+2. **APIキーを入力**（Gemini または OpenAI のAPIキー、ブラウザ内のみで使用）
 3. **ペルソナ設定**:
    - 人数 (1〜100人、デフォルト10)
    - 議論の傾向:
@@ -171,6 +171,7 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 | 項目 | 概算 |
 |---|---|
 | Gemini 3.1 Flash-Lite (10人) | 約 $0.01 〜 $0.03 USD |
+| GPT-5.6-luna (10人) | 約 $0.01 〜 $0.03 USD（reasoning トークン込みでGeminiとほぼ同等） |
 | AWS Lambda (記事プロキシ) | ほぼ無料枠内 |
 | S3 + CloudFront | 月数ドル程度 |
 
@@ -183,7 +184,7 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 | Gemini 3.1 Flash-Lite | ペルソナ生成・コメント生成（本体） | ✅ 利用可能 |
 | Gemini 2.5 Flash-Lite | Google検索グラウンディング（背景情報） | ✅ 利用可能 |
 | Claude Haiku 4.5 | （将来対応） | 🔜 準備中 |
-| GPT-5.6 Luna | （将来対応） | 🔜 準備中 |
+| GPT-5.6 Luna | ペルソナ生成・コメント生成・Web検索（2026-08-04 対応） | ✅ 利用可能 |
 
 ---
 
