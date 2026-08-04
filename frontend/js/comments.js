@@ -78,7 +78,7 @@ ${persona.stance === 'academic' || persona.stance === 'neutral' ? '冷静に、�
 コメントのみを返してください。説明や前置きは不要です。
 文字数は最大200文字でお願いします。`;
 
-  const result = await callGemini(apiKey, systemPrompt, userPrompt, {
+  const result = await callLLM(apiKey, systemPrompt, userPrompt, {
     temperature: 0.85,
     maxOutputTokens: 300,
   });
@@ -106,7 +106,7 @@ async function generateReply(apiKey, replyPersona, targetComment, articleText, a
   // 傾向別の返信口調ガイド（短縮版）
   const replyGuides = {
     reddit: 'Reddit風のカジュアルで知的な口調。皮肉やツッコミ多め。英語表現を自然に混ぜる。',
-    '2ch': '2ちゃんねる風のタメ語・煽り口調。スラング多め。遠慮なく噛みつく。',
+    '2ch': '2ちゃんねる風のタメ語・煽り口調。スラング多め。遠慮なくツッコミを入れる。',
     yahoo: 'Yahooコメント風。説教・上から目線・正論。ですます調とため口混在。',
   };
   const replyGuide = replyGuides[tendency] || replyGuides.yahoo;
@@ -124,8 +124,8 @@ async function generateReply(apiKey, replyPersona, targetComment, articleText, a
 - 「${targetComment.persona.nickname}」さんの以下のコメントに対する返信を書いてください
 - ${replyGuide}
 - 日本語で自然に、最大50文字で
-- 積極的に反論・ツッコミを入れて、対立を明確にしてください
-- 喧嘩腰で！`;
+- 自分の意見をはっきり述べ、相手が間違っていると思う点があれば遠慮なく指摘してください
+- 議論を盛り上げるような返信を心がけてください`;
 
   const userPrompt = `以下のコメントに対する返信を書いてください。
 
@@ -135,9 +135,9 @@ async function generateReply(apiKey, replyPersona, targetComment, articleText, a
 ## 記事の内容（参考）
 ${articleText.substring(0, 2000)}
 
-あなたの返信（最大50文字、喧嘩腰で）:`;
+あなたの返信（最大50文字）:`;
 
-  const result = await callGemini(apiKey, systemPrompt, userPrompt, {
+  const result = await callLLM(apiKey, systemPrompt, userPrompt, {
     temperature: 0.9,
     maxOutputTokens: 120,
   });
@@ -257,7 +257,7 @@ ${commentTexts}
 
 合計で150文字以内に収めてください。`;
 
-  const result = await callGemini(apiKey, systemPrompt, userPrompt, {
+  const result = await callLLM(apiKey, systemPrompt, userPrompt, {
     temperature: 0.5,
     maxOutputTokens: 300,
   });

@@ -13,7 +13,8 @@ const state = {
   includeJapan: true,
   personas: [],
   currentStep: 'input',
-  backgroundContext: null,  // Google Search Groundingの結果
+  backgroundContext: null,  // Web検索による背景情報
+  selectedModel: 'gemini-3.1-flash-lite',
 };
 
 // ===== 初期化 =====
@@ -55,6 +56,23 @@ function initApp() {
   // APIキー入力追跡
   $('api-key').addEventListener('input', () => {
     state.apiKey = $('api-key').value.trim();
+  });
+
+  // モデル選択
+  document.querySelectorAll('.model-card:not(.disabled)').forEach(card => {
+    card.addEventListener('click', () => {
+      const modelId = card.dataset.model;
+      if (!modelId || !MODELS[modelId]) return;
+
+      // UI更新
+      document.querySelectorAll('.model-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+
+      // 状態更新
+      state.selectedModel = modelId;
+      setSelectedModel(modelId);
+      updateCostEstimate();
+    });
   });
 
   // 記事テキスト手動編集追跡
@@ -175,7 +193,7 @@ async function handleFetchArticle() {
   }
 }
 
-// Google Search Grounding: 記事の背景情報をWEB検索で取得
+// Web検索: 記事の背景情報を取得
 // handleNextModel() から呼ばれる（APIキー確定後、Step 2→3 の遷移時）
 async function fetchBackgroundContext() {
   if (!state.apiKey || !state.articleText) return;
@@ -184,11 +202,16 @@ async function fetchBackgroundContext() {
   const bgContainer = $('background-context');
   if (!bgContainer) return;
 
-  bgContainer.innerHTML = '<div class="bg-loading">🔍 Google検索で記事の背景情報を調査中...（Gemini 2.5 Flash-Lite）<span class="loading-dot"></span></div>';
+  const model = getSelectedModel();
+  const searchModelName = model.provider === 'openai'
+    ? `GPT-5.6 Luna (OpenAI web_search)`
+    : `Gemini 2.5 Flash-Lite (Google Search)`;
+
+  bgContainer.innerHTML = `<div class="bg-loading">🔍 Web検索で記事の背景情報を調査中...（${searchModelName}）<span class="loading-dot"></span></div>`;
   show('background-context');
 
   try {
-    const bg = await searchGoogleGrounding(state.apiKey, state.articleTitle, state.articleText);
+    const bg = await searchWeb(state.apiKey, state.articleTitle, state.articleText);
     state.backgroundContext = bg;
 
     // 結果表示
@@ -198,9 +221,11 @@ async function fetchBackgroundContext() {
         ).join('')
       : '';
 
+    const modelName = getSelectedModel().name;
+
     bgContainer.innerHTML = `
       <div class="bg-result">
-        <div class="bg-header">🔍 Google検索による背景情報 <span class="hint">(Gemini 2.5 Flash-Lite)</span></div>
+        <div class="bg-header">🔍 Web検索による背景情報 <span class="hint">(${modelName})</span></div>
         ${bg.background ? `<div class="bg-section"><span class="bg-label">📖 背景</span><p>${escapeHtml(bg.background)}</p></div>` : ''}
         ${bg.publicOpinion ? `<div class="bg-section"><span class="bg-label">💬 論点</span><p>${escapeHtml(bg.publicOpinion)}</p></div>` : ''}
         ${bg.recentDevelopments ? `<div class="bg-section"><span class="bg-label">📰 最近の動向</span><p>${escapeHtml(bg.recentDevelopments)}</p></div>` : ''}
@@ -225,10 +250,18 @@ function handleNextModel() {
     return;
   }
   state.apiKey = apiKey;
+
+  // 選択中のモデルを同期
+  const selectedCard = document.querySelector('.model-card.selected');
+  if (selectedCard && selectedCard.dataset.model) {
+    state.selectedModel = selectedCard.dataset.model;
+    setSelectedModel(state.selectedModel);
+  }
+
   showStep('step-persona');
   updateCostEstimate();
 
-  // Google Search Grounding: 背景情報を非同期で取得（APIキーが確定したタイミング）
+  // Web検索: 背景情報を非同期で取得（APIキーが確定したタイミング）
   fetchBackgroundContext();
 }
 

@@ -145,7 +145,7 @@ ${preset.toneGuide}
 - 互いに対立しそうな性格のペルソナを入れて、喧嘩腰の議論を生みやすくしてください
 - stanceは指定された順に従ってください`;
 
-  const result = await callGemini(apiKey, systemPrompt, userPrompt, {
+  const result = await callLLM(apiKey, systemPrompt, userPrompt, {
     temperature: 1.0,
     maxOutputTokens: Math.max(count * 150 + 1000, 8192),
   });

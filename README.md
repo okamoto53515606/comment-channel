@@ -28,8 +28,8 @@
 [ブラウザ (SPA)]
   ├── 記事URL入力 → API Gateway → Lambda (記事プロキシ) → 記事取得
   ├── APIキー入力（ブラウザ内のみ保持、サーバー非送信）
-  ├── ペルソナ生成（Gemini API @ ブラウザ）
-  ├── コメント生成（Gemini API @ ブラウザ、逐次処理＋ライブ表示）
+  ├── ペルソナ生成（Gemini / GPT-5.6-luna @ ブラウザ）
+  ├── コメント生成（Gemini / GPT-5.6-luna @ ブラウザ、逐次処理＋ライブ表示）
   └── 結果表示 → 📋 HTMLコピー / 💾 HTMLダウンロード
 
 [AWS サーバーレス]
@@ -41,13 +41,13 @@
 
 ---
 
-## 🔍 Google検索グラウンディング（Gemini 2.5 Flash-Lite）
+## 🔍 Web検索による背景情報取得
 
-**2026-07-19 追加**
+**2026-07-19 追加 / 2026-08-04 GPT対応**
 
 記事URLから取得した本文だけではLLMが最新情報や背景を理解できない問題に対応。
-Step 2（モデル選択）→ Step 3（ペルソナ設定）遷移時に、Gemini 2.5 Flash-Liteの
-`google_search` ツールでWEB検索を実行し、以下を自動取得する：
+Step 2（モデル選択）→ Step 3（ペルソナ設定）遷移時に、選択モデルに応じた
+Web検索を実行し、以下を自動取得する：
 
 - 📖 **背景**: トピックの背景情報・時系列
 - 💬 **論点**: 世論の主な分かれ目
@@ -57,10 +57,27 @@ Step 2（モデル選択）→ Step 3（ペルソナ設定）遷移時に、Gemi
 取得した背景情報は Step 3 に表示され、ペルソナ生成・コメント生成の
 両プロンプトに自動注入される。
 
+### Gemini 選択時: Google Search Grounding
+
 | モデル | 費用 | 備考 |
 |---|---|---|
 | Gemini 2.5 Flash-Lite | 入力 $0.1 / 出力 $0.4 / 1M tokens | コメント生成本体とは別モデル |
 | Google Search Grounding | 月5,000クエリ無料、以降 $14/1,000クエリ | Gemini APIの無料枠に含まれる |
+
+- 1回のAPIコールで検索→回答が完結（シンプル・高速）
+- `groundingMetadata` から参照URLを取得
+
+### GPT-5.6-luna 選択時: OpenAI Responses API web_search
+
+| モデル | 費用 | 備考 |
+|---|---|---|
+| GPT-5.6-luna | 入力 $0.20 / 出力 $1.20 / 1M tokens | コメント生成と同じモデル（2026-07-30より80%OFF） |
+| web_search ツール | Responses API に内蔵 | 追加費用なし |
+
+- 内部的に reasoning → 検索 → reasoning → … → 回答 のマルチステップ
+- 複数回の検索＋ページ開封で深い調査が可能（その分低速）
+- `url_citation` annotations から参照URLを取得
+- reasoning トークンが出力の約50%を消費するため、実質コストはGeminiとほぼ同等
 
 ---
 
@@ -87,7 +104,7 @@ comment-channel/
 │   ├── js/
 │   │   ├── config.js            # ★デプロイ時に自動生成（API URL）
 │   │   ├── utils.js             # ユーティリティ + APIプロキシ呼び出し
-│   │   ├── llm.js               # Gemini API 呼び出し + Google検索グラウンディング
+│   │   ├── llm.js               # LLM API 呼び出し（Gemini / GPT-5.6-luna）+ Web検索
 │   │   ├── personas.js          # ペルソナ動的生成
 │   │   ├── comments.js          # コメント生成エンジン
 │   │   └── app.js               # メインアプリロジック
