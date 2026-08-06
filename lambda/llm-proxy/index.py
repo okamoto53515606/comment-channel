@@ -23,7 +23,7 @@ RATE_LIMIT_TABLE = os.environ.get('RATE_LIMIT_TABLE', 'CommentChannelRateLimit')
 
 
 def check_rate_limit(client_ip: str) -> bool:
-    """レート制限チェック: 同IPから1時間に50回まで"""
+    """レート制限チェック: 同IPから1時間に500回まで"""
     table = dynamodb.Table(RATE_LIMIT_TABLE)
     hour_key = f"llm-proxy:{client_ip}:{int(time.time() / 3600)}"
 
@@ -35,7 +35,7 @@ def check_rate_limit(client_ip: str) -> bool:
             ReturnValues='UPDATED_NEW',
         )
         count = resp.get('Attributes', {}).get('request_count', 1)
-        return count <= 50
+        return count <= 500
     except Exception:
         # DynamoDBが使えない場合も通す（フェイルオープン）
         return True

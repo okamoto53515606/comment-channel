@@ -99,7 +99,7 @@ Web検索を実行し、以下を自動取得する：
 |---|---|
 | **APIキー非送信** | Gemini/GPT: ブラウザのメモリ内のみ、サーバーに一切送信しない。Sakana: CORS回避のため Lambda Function URL を経由するが、保存・ログ出力は一切なし |
 | **データ非保存** | 生成結果はすべてブラウザ内で完結、サーバー保存なし |
-| **レート制限** | 同一IPから1時間に50回まで（記事取得API / LLMプロキシ両方。DynamoDBでIPベース制限） |
+| **レート制限** | 記事取得API: 同一IP 50回/時間。LLMプロキシ（Sakana中継）: 同一IP 500回/時間。DynamoDBでIPベース制限 |
 | **エンドポイント制限** | LLMプロキシ（Sakana中継）は `/v1/responses` のみ許可。汎用プロキシ化を防止 |
 | **ドメインブロック** | アダルト・犯罪関連ドメインをブロック |
 | **CORS制御** | API Gateway および LLMプロキシ Function URL で `comment-channel.okamomedia.tokyo` のみ許可 |
