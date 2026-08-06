@@ -265,7 +265,7 @@ async function callSakana(apiKey, systemPrompt, userPrompt, options = {}) {
   input.push({ role: 'user', content: userPrompt });
 
   // Sakana Namazu は reasoning が出力上限を大量消費するため、十分な余裕を持たせる
-  const sakanaMaxTokens = Math.max(maxOutputTokens + 1024, 1024);
+  const sakanaMaxTokens = Math.max(maxOutputTokens + 2048, 2048);
 
   const payload = {
     model: 'sakana-namazu',

@@ -88,7 +88,7 @@ Web検索を実行し、以下を自動取得する：
 | web_search ツール | $7.00 / 1,000回 | 検索クエリとページ本文取得それぞれ 1 回としてカウント |
 
 - Sakana API がブラウザ CORS 非対応のため、Lambda Function URL で中継
-- reasoning トークンが出力上限を大量消費するため、内部で `max_output_tokens` を自動増強（+1024）
+- reasoning トークンが出力上限を大量消費するため、内部で `max_output_tokens` を自動増強（+2048）
 - マークダウンコードフェンスで JSON を返すため、フロントエンドで除去処理あり
 
 ---
