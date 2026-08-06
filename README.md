@@ -191,7 +191,7 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 |---|---|
 | Gemini 3.1 Flash-Lite (10人) | 約 $0.01 〜 $0.03 USD |
 | GPT-5.6-luna (10人) | 約 $0.01 〜 $0.03 USD（reasoning 込みでGeminiとほぼ同等） |
-| Sakana Namazu (10人) | 約 $0.21 USD（reasoning が出力の約95%を消費するため割高。実測: 36,662入力/43,764出力→$0.210） |
+| Sakana Namazu (10人) | 約 $0.24 USD（reasoning が出力の約95%を消費するため割高。実測: 37,443入力/51,590出力→$0.242） |
 | AWS Lambda (記事プロキシ) | ほぼ無料枠内 |
 | S3 + CloudFront | 月数ドル程度 |
 
