@@ -125,6 +125,12 @@ Resources:
       Handler: index.lambda_handler
       Timeout: 180
       MemorySize: 256
+      Environment:
+        Variables:
+          RATE_LIMIT_TABLE: !Ref RateLimitTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RateLimitTable
       FunctionUrlConfig:
         AuthType: NONE
         Cors:

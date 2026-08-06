@@ -2,14 +2,43 @@
 Sakana Namazu API プロキシ Lambda
 - Sakana API がブラウザからの CORS をサポートしていないため、サーバーサイドで中継
 - APIキーはこのLambdaを通過するが、保存・ログ出力は一切しない
+- エンドポイントホワイトリスト + IP ベースレート制限あり
 """
 import json
 import os
+import time
 
+import boto3
 import requests
 
 SAKANA_API_BASE = 'https://api.sakana.ai'
 REQUEST_TIMEOUT = 180  # Sakana Namazu の Web検索は複数回の reasoning + search で時間がかかる
+
+# 許可するエンドポイント（ホワイトリスト）
+ALLOWED_ENDPOINTS = {'/v1/responses'}
+
+# DynamoDB（レート制限用）
+dynamodb = boto3.resource('dynamodb')
+RATE_LIMIT_TABLE = os.environ.get('RATE_LIMIT_TABLE', 'CommentChannelRateLimit')
+
+
+def check_rate_limit(client_ip: str) -> bool:
+    """レート制限チェック: 同IPから1時間に50回まで"""
+    table = dynamodb.Table(RATE_LIMIT_TABLE)
+    hour_key = f"llm-proxy:{client_ip}:{int(time.time() / 3600)}"
+
+    try:
+        resp = table.update_item(
+            Key={'pk': hour_key},
+            UpdateExpression='ADD request_count :inc',
+            ExpressionAttributeValues={':inc': 1},
+            ReturnValues='UPDATED_NEW',
+        )
+        count = resp.get('Attributes', {}).get('request_count', 1)
+        return count <= 50
+    except Exception:
+        # DynamoDBが使えない場合も通す（フェイルオープン）
+        return True
 
 
 def lambda_handler(event, context):
@@ -33,6 +62,18 @@ def lambda_handler(event, context):
         return _response(400, {'error': 'apiKey is required'})
 
     endpoint = body.get('endpoint', '/v1/responses')
+
+    # エンドポイントのホワイトリストチェック
+    if endpoint not in ALLOWED_ENDPOINTS:
+        return _response(403, {'error': f'Endpoint not allowed: {endpoint}'})
+
+    # クライアントIPを取得してレート制限チェック
+    client_ip = (
+        event.get('requestContext', {}).get('http', {}).get('sourceIp', '')
+        or event.get('headers', {}).get('x-forwarded-for', 'unknown').split(',')[0].strip()
+    )
+    if not check_rate_limit(client_ip):
+        return _response(429, {'error': 'Rate limit exceeded. Please try again later.'})
     payload = body.get('payload', {})
 
     # Sakana API を呼び出し
