@@ -221,10 +221,10 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 
 ## 📄 実装レポート・サンプル
 
-- [Sakana Namazu 実装レポート (2026-08-06)](docs/20260806_sakana-namazu_report.md)
-- [Gemini 生成サンプル](docs/20260806_gemini-3.1-flash-lite.html)
-- [GPT-5.6 Luna 生成サンプル](docs/20260806_gpt-5.6-luna.html)
-- [Sakana Namazu 生成サンプル](docs/20260806_sakana-namazu-v1.0.html)
+- [Sakana Namazu 実装レポート (2026-08-06)](https://okamoto53515606.github.io/comment-channel/20260806_sakana-namazu_report.md)
+- [Gemini 生成サンプル](https://okamoto53515606.github.io/comment-channel/20260806_gemini-3.1-flash-lite.html)
+- [GPT-5.6 Luna 生成サンプル](https://okamoto53515606.github.io/comment-channel/20260806_gpt-5.6-luna.html)
+- [Sakana Namazu 生成サンプル](https://okamoto53515606.github.io/comment-channel/20260806_sakana-namazu-v1.0.html)
 
 ---
 
