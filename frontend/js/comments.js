@@ -69,7 +69,7 @@ ${toneGuide}
 
 ## 記事
 ${articleText.substring(0, 4000)}
-${backgroundContext ? `\n## 参考：背景情報（Google検索による補足）\n- 背景: ${backgroundContext.background || 'なし'}\n- 論点: ${backgroundContext.publicOpinion || 'なし'}\n${(backgroundContext.relatedFacts || []).map(f => `- 関連事実: ${f}`).join('\n')}` : ''}
+${backgroundContext ? `\n## 参考：背景情報（Web検索による補足）\n- 背景: ${backgroundContext.background || 'なし'}\n- 論点: ${backgroundContext.publicOpinion || 'なし'}\n${(backgroundContext.relatedFacts || []).map(f => `- 関連事実: ${f}`).join('\n')}` : ''}
 ${contextText}
 ## 指示
 あなたのペルソナとして、この記事に対するコメントを書いてください。
@@ -80,7 +80,7 @@ ${persona.stance === 'academic' || persona.stance === 'neutral' ? '冷静に、�
 
   const result = await callLLM(apiKey, systemPrompt, userPrompt, {
     temperature: 0.85,
-    maxOutputTokens: 300,
+    maxOutputTokens: 512,
   });
 
   // 使用量を集計
@@ -139,7 +139,7 @@ ${articleText.substring(0, 2000)}
 
   const result = await callLLM(apiKey, systemPrompt, userPrompt, {
     temperature: 0.9,
-    maxOutputTokens: 120,
+    maxOutputTokens: 256,
   });
 
   totalUsage.inputTokens += result.inputTokens;
@@ -259,7 +259,7 @@ ${commentTexts}
 
   const result = await callLLM(apiKey, systemPrompt, userPrompt, {
     temperature: 0.5,
-    maxOutputTokens: 300,
+    maxOutputTokens: 512,
   });
 
   return result.text.trim();

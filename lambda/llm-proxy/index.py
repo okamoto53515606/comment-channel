@@ -1,0 +1,82 @@
+"""
+Sakana Namazu API プロキシ Lambda
+- Sakana API がブラウザからの CORS をサポートしていないため、サーバーサイドで中継
+- APIキーはこのLambdaを通過するが、保存・ログ出力は一切しない
+"""
+import json
+import os
+
+import requests
+
+SAKANA_API_BASE = 'https://api.sakana.ai'
+REQUEST_TIMEOUT = 180  # Sakana Namazu の Web検索は複数回の reasoning + search で時間がかかる
+
+
+def lambda_handler(event, context):
+    """Function URL → Sakana API へ中継"""
+    # CORS プリフライト (OPTIONS) — 実際の CORS ヘッダーは Function URL の Cors 設定が付与する
+    if event.get('requestContext', {}).get('http', {}).get('method') == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'text/plain'},
+            'body': '',
+        }
+
+    try:
+        body = json.loads(event.get('body', '{}'))
+    except json.JSONDecodeError:
+        return _response(400, {'error': 'Invalid JSON body'})
+
+    # 必須パラメータ
+    api_key = body.get('apiKey', '').strip()
+    if not api_key:
+        return _response(400, {'error': 'apiKey is required'})
+
+    endpoint = body.get('endpoint', '/v1/responses')
+    payload = body.get('payload', {})
+
+    # Sakana API を呼び出し
+    url = f'{SAKANA_API_BASE}{endpoint}'
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {api_key}',
+    }
+
+    try:
+        resp = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=REQUEST_TIMEOUT,
+        )
+        # Sakana のレスポンスから巨大な暗号化コンテンツを除去（ブラウザ転送量削減）
+        sakana_response = resp.json()
+        _strip_encrypted_content(sakana_response)
+        return {
+            'statusCode': resp.status_code,
+            'headers': {'Content-Type': 'application/json'},
+            'body': json.dumps(sakana_response, ensure_ascii=False),
+        }
+    except requests.exceptions.Timeout:
+        return _response(504, {'error': 'Sakana API request timed out'})
+    except requests.exceptions.RequestException as e:
+        return _response(502, {'error': f'Sakana API connection error: {str(e)}'})
+
+
+def _strip_encrypted_content(obj):
+    """再帰的に namazu_encrypted_content フィールドを除去（ブラウザ転送量削減のため）"""
+    if isinstance(obj, dict):
+        obj.pop('namazu_encrypted_content', None)
+        for v in obj.values():
+            _strip_encrypted_content(v)
+    elif isinstance(obj, list):
+        for item in obj:
+            _strip_encrypted_content(item)
+
+
+def _response(status_code, body):
+    return {
+        'statusCode': status_code,
+        'headers': {'Content-Type': 'application/json'},
+        'body': json.dumps(body, ensure_ascii=False),
+    }

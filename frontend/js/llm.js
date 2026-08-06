@@ -2,6 +2,7 @@
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const OPENAI_API_BASE = 'https://api.openai.com/v1';
+const SAKANA_API_BASE = 'https://api.sakana.ai';
 
 // ===== モデルレジストリ =====
 const MODELS = {
@@ -19,6 +20,13 @@ const MODELS = {
     name: 'GPT-5.6 Luna',
     pricing: { input: 0.20, output: 1.20 }, // 2026-07-30より80%OFF
     supportsWebSearch: true, // Responses API ビルトイン web_search ツール
+  },
+  'sakana-namazu': {
+    id: 'sakana-namazu',
+    provider: 'sakana',
+    name: 'Sakana Namazu',
+    pricing: { input: 0.95, output: 4.00 }, // $0.95/$4.00 per 1M tokens
+    supportsWebSearch: true, // Responses API ビルトイン web_search ツール ($7/1K queries)
   },
 };
 
@@ -164,13 +172,129 @@ async function callOpenAI(apiKey, systemPrompt, userPrompt, options = {}) {
   };
 }
 
-// ===== 統合LLM呼び出し（モデル選択に応じてGemini/OpenAIを切り替え） =====
+// ===== Sakana Namazu（Lambda プロキシ経由。Sakana API がブラウザ CORS 非対応のため） =====
+
+// Sakana API プロキシ呼び出しの共通ヘルパー
+async function callSakanaProxy(apiKey, endpoint, payload) {
+  const proxyBody = {
+    apiKey,
+    endpoint,
+    payload,
+  };
+
+  const resp = await fetch(LLM_PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(proxyBody),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    let errMsg;
+    try {
+      const errJson = JSON.parse(errText);
+      errMsg = errJson?.error?.message || errJson?.error || errText;
+    } catch {
+      errMsg = errText;
+    }
+    throw new Error(`Sakana API エラー: ${errMsg}`);
+  }
+
+  // Function URL は Lambda の戻り値 { statusCode, body } の body を
+  // そのまま HTTP レスポンスボディとして返す（API Gateway と違ってラップしない）
+  return resp.json();
+}
+
+// プロキシ経由の Responses API レスポンスからテキストとソースを抽出
+function extractSakanaResponse(data, options = {}) {
+  const messages = (data.output || []).filter(item => item.type === 'message');
+  const lastMessage = messages[messages.length - 1];
+
+  // 1. Responses API 形式: output[].message.content[].output_text
+  let text = '';
+  let annotations = [];
+  if (lastMessage?.content) {
+    for (const part of lastMessage.content) {
+      if (part.type === 'output_text' && part.text) {
+        text = part.text;
+        annotations = part.annotations || [];
+        break;
+      }
+    }
+  }
+
+  // 2. Chat Completions 形式（Sakana がたまにこの形式で返す）: choices[0].message.content
+  if (!text && data.choices) {
+    text = data.choices?.[0]?.message?.content || '';
+  }
+
+  // 3. フォールバック: reasoning.summary（Web検索時のみ最終回答がここに入ることがある）
+  if (!text && options._allowReasoningFallback) {
+    const reasoningItems = (data.output || []).filter(item => item.type === 'reasoning');
+    for (const ri of reasoningItems.reverse()) {
+      for (const s of (ri.summary || [])) {
+        if (s.type === 'summary_text' && s.text) {
+          text = s.text;
+          break;
+        }
+      }
+      if (text) break;
+    }
+  }
+
+  const sources = annotations
+    .filter(a => a.type === 'url_citation')
+    .map(a => ({ url: a.url, title: a.title || '' }));
+
+  const usage = data.usage || {};
+  return {
+    text,
+    inputTokens: usage.input_tokens || 0,
+    outputTokens: usage.output_tokens || 0,
+    sources,
+  };
+}
+
+async function callSakana(apiKey, systemPrompt, userPrompt, options = {}) {
+  const { maxOutputTokens = 1024, useWebSearch = false, temperature } = options;
+
+  const input = [];
+  if (systemPrompt) {
+    input.push({ role: 'system', content: systemPrompt });
+  }
+  input.push({ role: 'user', content: userPrompt });
+
+  // Sakana Namazu は reasoning が出力上限を大量消費するため、十分な余裕を持たせる
+  const sakanaMaxTokens = Math.max(maxOutputTokens + 1024, 1024);
+
+  const payload = {
+    model: 'sakana-namazu',
+    input,
+    max_output_tokens: sakanaMaxTokens,
+  };
+
+  // Sakana Namazu は temperature 対応（reasoning モデルではない）
+  if (temperature !== undefined) {
+    payload.temperature = temperature;
+  }
+
+  if (useWebSearch) {
+    payload.tools = [{ type: 'web_search' }];
+  }
+
+  const data = await callSakanaProxy(apiKey, '/v1/responses', payload);
+  return extractSakanaResponse(data);
+}
+
+// ===== 統合LLM呼び出し（モデル選択に応じて切り替え） =====
 async function callLLM(apiKey, systemPrompt, userPrompt, options = {}) {
   const model = MODELS[SELECTED_MODEL_ID];
   if (model.provider === 'gemini') {
     return callGemini(apiKey, systemPrompt, userPrompt, options);
   } else if (model.provider === 'openai') {
     return callOpenAI(apiKey, systemPrompt, userPrompt, options);
+  } else if (model.provider === 'sakana') {
+    return callSakana(apiKey, systemPrompt, userPrompt, options);
   }
   throw new Error(`未対応のプロバイダー: ${model.provider}`);
 }
@@ -282,11 +406,78 @@ ${articleText.substring(0, 3000)}
   };
 }
 
+// Sakana Namazu Responses API ビルトイン web_search による背景検索（Lambdaプロキシ経由）
+async function searchSakanaWeb(apiKey, articleTitle, articleText) {
+  const systemPrompt = `あなたは調査アシスタントです。与えられた記事について、Web検索を使って最新の関連情報や背景を調査してください。`;
+
+  const userPrompt = `以下のニュース記事について、Web検索で関連情報を調査し、以下の項目を日本語でまとめてください。
+
+## 記事タイトル
+${articleTitle || '（不明）'}
+
+## 記事本文（先頭部分）
+${articleText.substring(0, 3000)}
+
+## 出力形式（厳守）
+以下のJSON形式のみを返してください。
+
+{
+  "background": "この記事のトピックに関する背景情報・時系列（100〜200文字）",
+  "relatedFacts": ["関連する重要な事実1", "関連する重要な事実2", "関連する重要な事実3"],
+  "publicOpinion": "このトピックに関する世論の主な分かれ目・論点（100〜200文字）",
+  "recentDevelopments": "直近の関連ニュース・展開（100〜200文字）"
+}`;
+
+  const payload = {
+    model: 'sakana-namazu',
+    input: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    tools: [{ type: 'web_search' }],
+    max_output_tokens: 2048,
+  };
+
+  const data = await callSakanaProxy(apiKey, '/v1/responses', payload);
+  const { text, sources, inputTokens, outputTokens } = extractSakanaResponse(data, { _allowReasoningFallback: true });
+
+  // JSONパース（コードフェンス ```json ... ``` 除去対応）
+  let result;
+  try {
+    let cleanText = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+    const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+    result = JSON.parse(jsonMatch ? jsonMatch[0] : cleanText);
+  } catch (e) {
+    console.warn('[searchSakanaWeb] JSON parse failed, text preview:', text.substring(0, 200));
+    result = {
+      background: text.substring(0, 300),
+      relatedFacts: [],
+      publicOpinion: '',
+      recentDevelopments: '',
+    };
+  }
+
+  return {
+    background: result.background || '',
+    relatedFacts: result.relatedFacts || [],
+    publicOpinion: result.publicOpinion || '',
+    recentDevelopments: result.recentDevelopments || '',
+    sources,
+    searchEntryPoint: '',
+    tokens: { input: inputTokens, output: outputTokens },
+  };
+}
+
 // 統合Web検索（モデルに応じて切り替え）
 async function searchWeb(apiKey, articleTitle, articleText) {
   const model = MODELS[SELECTED_MODEL_ID];
-  if (model.provider === 'openai' && model.supportsWebSearch) {
-    return searchOpenAIWeb(apiKey, articleTitle, articleText);
+  if (model.supportsWebSearch) {
+    if (model.provider === 'sakana') {
+      return searchSakanaWeb(apiKey, articleTitle, articleText);
+    }
+    if (model.provider === 'openai') {
+      return searchOpenAIWeb(apiKey, articleTitle, articleText);
+    }
   }
   // Gemini（またはその他）は従来のGoogle Search Grounding
   return searchGoogleGrounding(apiKey, articleTitle, articleText);

@@ -116,6 +116,25 @@ Resources:
             Path: /fetch-article
             Method: POST
 
+  # ===== Lambda: LLM プロキシ（Sakana Namazu CORS回避用。Function URL で API Gateway の 29秒制限を回避） =====
+  LlmProxyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: comment-channel-llm-proxy
+      CodeUri: lambda/llm-proxy/
+      Handler: index.lambda_handler
+      Timeout: 180
+      MemorySize: 256
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - '*'
+          AllowMethods:
+            - '*'
+          AllowHeaders:
+            - '*'
+
   # ===== CloudFront =====
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
@@ -162,6 +181,9 @@ Outputs:
   ApiEndpoint:
     Description: API Gateway Endpoint
     Value: !Sub 'https://${CommentApi}.execute-api.${AWS::Region}.amazonaws.com/prod/'
+  LlmProxyUrl:
+    Description: LLM Proxy Function URL (Sakana Namazu CORS bypass)
+    Value: !GetAtt LlmProxyFunctionUrl.FunctionUrl
   CloudFrontUrl:
     Description: CloudFront URL
     Value: !Sub 'https://${CloudFrontDomain}'

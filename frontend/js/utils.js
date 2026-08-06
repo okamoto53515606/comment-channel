@@ -69,6 +69,7 @@ function trimArticleText(text, maxLen) {
 
 // API Gatewayのエンドポイント（ビルド時に置換）
 const API_BASE = window.CC_API_BASE || 'https://api.example.com';
+const LLM_PROXY_URL = window.CC_LLM_PROXY_URL || '';
 const SIGNING_SECRET = window.CC_SIGNING_SECRET || 'dev-secret-change-in-production';
 
 // 記事取得プロキシ呼び出し

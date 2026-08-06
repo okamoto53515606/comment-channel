@@ -203,9 +203,12 @@ async function fetchBackgroundContext() {
   if (!bgContainer) return;
 
   const model = getSelectedModel();
-  const searchModelName = model.provider === 'openai'
-    ? `GPT-5.6 Luna (OpenAI web_search)`
-    : `Gemini 2.5 Flash-Lite (Google Search)`;
+  const searchModelLabels = {
+    openai: 'GPT-5.6 Luna (OpenAI web_search)',
+    sakana: 'Sakana Namazu (web_search)',
+    gemini: 'Gemini 2.5 Flash-Lite (Google Search)',
+  };
+  const searchModelName = searchModelLabels[model.provider] || searchModelLabels.gemini;
 
   bgContainer.innerHTML = `<div class="bg-loading">🔍 Web検索で記事の背景情報を調査中...（${searchModelName}）<span class="loading-dot"></span></div>`;
   show('background-context');

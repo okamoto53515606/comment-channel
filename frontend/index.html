@@ -74,16 +74,28 @@
         </div>
         <div class="model-badge">🆕 80%OFF + Web検索内蔵</div>
       </div>
+
+      <div class="model-card" data-model="sakana-namazu">
+        <div class="model-name">Sakana Namazu</div>
+        <div class="model-id">sakana-namazu-v1.0</div>
+        <div class="model-pricing">
+          <span>入力 $0.95 / 1M tokens</span>
+          <span>出力 $4.00 / 1M tokens</span>
+        </div>
+        <div class="model-badge">🆕 日本語特化 + Web検索内蔵</div>
+      </div>
     </div>
 
     <div class="form-group">
       <label for="api-key">
         🔑 APIキー
-        <span class="security-notice">🛡 APIキーはあなたのブラウザ内でのみ使用され、サーバーに一切送信されません</span>
+        <span class="security-notice">🛡 Gemini/GPT: ブラウザ内のみ使用。Sakana: CORS回避のためプロキシを通過（保存なし）</span>
       </label>
       <input type="password" id="api-key" placeholder="AI の APIキーを入力してください">
       <p class="hint security-info">
-        ⚠️ APIキーはお使いのブラウザのメモリ内にのみ保持され、当サービスのサーバーには一切送信されません。
+        ⚠️ APIキーはお使いのブラウザのメモリ内にのみ保持されます。<br>
+        Gemini / GPT-5.6-luna はブラウザから直接APIを呼び出すため、サーバーに一切送信されません。<br>
+        Sakana Namazu のみ、APIがブラウザCORS非対応のため、当サービスの中継サーバーを経由します（APIキーの保存・ログ出力は一切行いません）。<br>
         AIモデルの利用にはAPIキーに紐づく費用が発生します。
       </p>
     </div>
@@ -167,7 +179,7 @@
     <div class="disclaimer">
       <ul>
         <li>🔞 アダルト・犯罪関連の記事は禁止です</li>
-        <li>🛡 <strong>APIキーはサーバーに一切送信されません</strong>（ブラウザ内でのみ使用）</li>
+        <li>🛡 <strong>Gemini/GPT: APIキーはサーバーに一切送信されません</strong>（ブラウザ内でのみ使用）。Sakana: CORS回避のため中継サーバーを経由（保存なし）</li>
         <li>💰 APIキーを通じてAIモデル利用料金が発生します（推定費用: <strong id="cost-estimate">計算中...</strong>）</li>
         <li>🔒 生成結果はブラウザ内でのみ表示され、サーバーには保存されません</li>
         <li>🤖 すべてのコメントはAIによって生成されたものです</li>

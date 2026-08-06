@@ -61,7 +61,7 @@ async function generatePersonas(apiKey, count, tendency, countries, articleConte
   // 背景情報がある場合はプロンプトに追加
   let bgSection = '';
   if (backgroundContext) {
-    bgSection = `\n## この記事に関する背景情報（Google検索による補足）\n- 背景: ${backgroundContext.background || 'なし'}\n- 論点: ${backgroundContext.publicOpinion || 'なし'}\n- 最近の動向: ${backgroundContext.recentDevelopments || 'なし'}\n${(backgroundContext.relatedFacts || []).map((f, i) => `- 関連事実${i + 1}: ${f}`).join('\n')}`;
+    bgSection = `\n## この記事に関する背景情報（Web検索による補足）\n- 背景: ${backgroundContext.background || 'なし'}\n- 論点: ${backgroundContext.publicOpinion || 'なし'}\n- 最近の動向: ${backgroundContext.recentDevelopments || 'なし'}\n${(backgroundContext.relatedFacts || []).map((f, i) => `- 関連事実${i + 1}: ${f}`).join('\n')}`;
   }
 
   // stanceの分布から割り当てを生成（感情的な人と冷静な人の両方を確保）
@@ -147,7 +147,7 @@ ${preset.toneGuide}
 
   const result = await callLLM(apiKey, systemPrompt, userPrompt, {
     temperature: 1.0,
-    maxOutputTokens: Math.max(count * 150 + 1000, 8192),
+    maxOutputTokens: Math.max(count * 250 + 2000, 16384),
   });
 
   // JSONパース（途中で切れた場合もリカバリ）
