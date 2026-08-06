@@ -116,9 +116,9 @@ Sakana Namazu は:
 ### 4.2 コメント品質
 
 各モデルの生成結果 HTML:
-- [Gemini](https://okamoto53515606.github.io/comment-channel/20260806_gemini-3.1-flash-lite.html)
-- [GPT-5.6 Luna](https://okamoto53515606.github.io/comment-channel/20260806_gpt-5.6-luna.html)
-- [Sakana Namazu](https://okamoto53515606.github.io/comment-channel/20260806_sakana-namazu-v1.0.html)
+- [Gemini](./20260806_gemini-3.1-flash-lite.html)
+- [GPT-5.6 Luna](./20260806_gpt-5.6-luna.html)
+- [Sakana Namazu](./20260806_sakana-namazu-v1.0.html)
 
 | | Gemini | GPT-5.6 Luna | Sakana Namazu |
 |---|---|---|---|

@@ -27,15 +27,16 @@
 ```
 [ブラウザ (SPA)]
   ├── 記事URL入力 → API Gateway → Lambda (記事プロキシ) → 記事取得
-  ├── APIキー入力（ブラウザ内のみ保持、サーバー非送信）
-  ├── ペルソナ生成（Gemini / GPT-5.6-luna @ ブラウザ）
-  ├── コメント生成（Gemini / GPT-5.6-luna @ ブラウザ、逐次処理＋ライブ表示）
+  ├── APIキー入力（Gemini/GPT: ブラウザ内のみ。Sakana: Lambda Function URL 経由で中継、保存なし）
+  ├── ペルソナ生成（Gemini / GPT-5.6-luna / Sakana Namazu @ ブラウザ）
+  ├── コメント生成（Gemini / GPT-5.6-luna / Sakana Namazu @ ブラウザ、逐次処理＋ライブ表示）
   └── 結果表示 → 📋 HTMLコピー / 💾 HTMLダウンロード
 
 [AWS サーバーレス]
   ├── S3 + CloudFront: フロントエンド静的ホスティング
   ├── API Gateway: REST API (fetch-article のみ)
   ├── Lambda: article-proxy（記事URL取得、CORS回避）
+  ├── Lambda: llm-proxy（Sakana Namazu API 中継。Sakana API がブラウザ CORS 非対応のため Function URL で公開）
   └── DynamoDB: レート制限
 ```
 
@@ -79,15 +80,26 @@ Web検索を実行し、以下を自動取得する：
 - `url_citation` annotations から参照URLを取得
 - reasoning トークンが出力の約50%を消費するため、実質コストはGeminiとほぼ同等
 
+### Sakana Namazu 選択時: Responses API web_search（Lambda プロキシ経由）
+
+| モデル | 費用 | 備考 |
+|---|---|---|
+| Sakana Namazu (sakana-namazu-v1.0) | 入力 $0.95 / 出力 $4.00 / 1M tokens | コメント生成と同じモデル |
+| web_search ツール | $7.00 / 1,000回 | 検索クエリとページ本文取得それぞれ 1 回としてカウント |
+
+- Sakana API がブラウザ CORS 非対応のため、Lambda Function URL で中継
+- reasoning トークンが出力上限を大量消費するため、内部で `max_output_tokens` を自動増強（+1024）
+- マークダウンコードフェンスで JSON を返すため、フロントエンドで除去処理あり
+
 ---
 
 ## 🔒 セキュリティ
 
 | 対策 | 内容 |
 |---|---|
-| **APIキー非送信** | APIキーはブラウザのメモリ内のみ、サーバーに一切送信しない |
+| **APIキー非送信** | Gemini/GPT: ブラウザのメモリ内のみ、サーバーに一切送信しない。Sakana: CORS回避のため Lambda Function URL を経由するが、保存・ログ出力は一切なし |
 | **データ非保存** | 生成結果はすべてブラウザ内で完結、サーバー保存なし |
-| **レート制限** | 同一IPから1時間に10回まで（記事取得API） |
+| **レート制限** | 同一IPから1時間に50回まで（記事取得API） |
 | **ドメインブロック** | アダルト・犯罪関連ドメインをブロック |
 | **CORS制御** | API Gatewayで `comment-channel.okamomedia.tokyo` のみ許可 |
 | **CloudFront OAC** | S3への直接アクセス禁止、CloudFront経由のみ |
@@ -111,7 +123,13 @@ comment-channel/
 │   └── personas/
 │       └── country-data.js      # 国・地域データ (9地域47カ国)
 ├── lambda/
-│   └── article-proxy/           # 記事取得プロキシ (Python)
+│   ├── article-proxy/           # 記事取得プロキシ (Python)
+│   └── llm-proxy/               # Sakana Namazu API 中継 (Python)
+├── docs/                        # 実装レポート・生成結果サンプル
+│   ├── 20260806_sakana-namazu_report.md
+│   ├── 20260806_gemini-3.1-flash-lite.html
+│   ├── 20260806_gpt-5.6-luna.html
+│   └── 20260806_sakana-namazu-v1.0.html
 ├── template.yaml                # AWS SAM テンプレート
 ├── scripts/deploy.sh            # デプロイスクリプト
 └── README.md
@@ -152,7 +170,7 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 ## 🎮 使い方
 
 1. **記事URLを入力** → 「記事を取得する」ボタン
-2. **APIキーを入力**（Gemini または OpenAI のAPIキー、ブラウザ内のみで使用）
+2. **APIキーを入力**（Gemini / OpenAI / Sakana のAPIキー。Gemini/GPTはブラウザ内のみ、Sakanaは中継サーバー経由だが保存なし）
 3. **ペルソナ設定**:
    - 人数 (1〜100人、デフォルト10)
    - 議論の傾向:
@@ -171,7 +189,8 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 | 項目 | 概算 |
 |---|---|
 | Gemini 3.1 Flash-Lite (10人) | 約 $0.01 〜 $0.03 USD |
-| GPT-5.6-luna (10人) | 約 $0.01 〜 $0.03 USD（reasoning トークン込みでGeminiとほぼ同等） |
+| GPT-5.6-luna (10人) | 約 $0.01 〜 $0.03 USD（reasoning 込みでGeminiとほぼ同等） |
+| Sakana Namazu (10人) | 約 $0.10 〜 $0.15 USD（reasoning が出力の約95%を消費するため割高） |
 | AWS Lambda (記事プロキシ) | ほぼ無料枠内 |
 | S3 + CloudFront | 月数ドル程度 |
 
@@ -185,6 +204,7 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 | Gemini 2.5 Flash-Lite | Google検索グラウンディング（背景情報） | ✅ 利用可能 |
 | Claude Haiku 4.5 | （将来対応） | 🔜 準備中 |
 | GPT-5.6 Luna | ペルソナ生成・コメント生成・Web検索（2026-08-04 対応） | ✅ 利用可能 |
+| Sakana Namazu | ペルソナ生成・コメント生成・Web検索。CORS回避のためLambda中継（2026-08-06 対応） | ✅ 利用可能 |
 
 ---
 
@@ -192,9 +212,19 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 
 - すべてのコメント・返信はAIが生成したものです
 - アダルト・犯罪関連のURLはブロックされます
-- APIキーはブラウザ内でのみ使用され、サーバーには一切送信されません
+- Gemini/GPT: APIキーはブラウザ内でのみ使用され、サーバーには一切送信されません
+- Sakana Namazu: APIキーはCORS回避のため中継サーバーを経由しますが、保存・ログ出力は一切ありません
 - 生成結果はブラウザ内でのみ表示され、サーバーには保存されません
 - コメントの正確性・品質は保証されません
+
+---
+
+## 📄 実装レポート・サンプル
+
+- [Sakana Namazu 実装レポート (2026-08-06)](docs/20260806_sakana-namazu_report.md)
+- [Gemini 生成サンプル](docs/20260806_gemini-3.1-flash-lite.html)
+- [GPT-5.6 Luna 生成サンプル](docs/20260806_gpt-5.6-luna.html)
+- [Sakana Namazu 生成サンプル](docs/20260806_sakana-namazu-v1.0.html)
 
 ---
 
