@@ -265,7 +265,7 @@ async function callSakana(apiKey, systemPrompt, userPrompt, options = {}) {
   input.push({ role: 'user', content: userPrompt });
 
   // Sakana Namazu は reasoning が出力上限を大量消費するため、十分な余裕を持たせる
-  const sakanaMaxTokens = Math.max(maxOutputTokens + 2048, 2048);
+  const sakanaMaxTokens = Math.max(maxOutputTokens + 8192, 4096);
 
   const payload = {
     model: 'sakana-namazu',
@@ -435,7 +435,7 @@ ${articleText.substring(0, 3000)}
       { role: 'user', content: userPrompt },
     ],
     tools: [{ type: 'web_search' }],
-    max_output_tokens: 2048,
+    max_output_tokens: Math.max(2048 + 8192, 4096), // reasoning の出力上限消費に備えた余裕
   };
 
   const data = await callSakanaProxy(apiKey, '/v1/responses', payload);

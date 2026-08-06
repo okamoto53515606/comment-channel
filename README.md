@@ -88,7 +88,7 @@ Web検索を実行し、以下を自動取得する：
 | web_search ツール | $7.00 / 1,000回 | 検索クエリとページ本文取得それぞれ 1 回としてカウント |
 
 - Sakana API がブラウザ CORS 非対応のため、Lambda Function URL で中継
-- reasoning トークンが出力上限を大量消費するため、内部で `max_output_tokens` を自動増強（+2048）
+- reasoning トークンが出力上限を大量消費するため、内部で `max_output_tokens` を自動増強（+8192）
 - マークダウンコードフェンスで JSON を返すため、フロントエンドで除去処理あり
 
 ---
@@ -190,7 +190,7 @@ aws s3 sync frontend/ s3://comment-channel-pages-<ACCOUNT_ID>/ \
 |---|---|
 | Gemini 3.1 Flash-Lite (10人) | 約 $0.01 〜 $0.03 USD |
 | GPT-5.6-luna (10人) | 約 $0.01 〜 $0.03 USD（reasoning 込みでGeminiとほぼ同等） |
-| Sakana Namazu (10人) | 約 $0.10 〜 $0.15 USD（reasoning が出力の約95%を消費するため割高） |
+| Sakana Namazu (10人) | 約 $0.21 USD（reasoning が出力の約95%を消費するため割高。実測: 36,662入力/43,764出力→$0.210） |
 | AWS Lambda (記事プロキシ) | ほぼ無料枠内 |
 | S3 + CloudFront | 月数ドル程度 |
 
