@@ -135,7 +135,7 @@ Resources:
         AuthType: NONE
         Cors:
           AllowOrigins:
-            - '*'
+            - 'https://comment-channel.okamomedia.tokyo'
           AllowMethods:
             - '*'
           AllowHeaders:
