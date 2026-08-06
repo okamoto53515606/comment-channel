@@ -76,32 +76,58 @@ def lambda_handler(event, context):
         return _response(429, {'error': 'Rate limit exceeded. Please try again later.'})
     payload = body.get('payload', {})
 
-    # Sakana API を呼び出し
+    # Sakana API を呼び出し（502/503 は1回だけリトライ）
     url = f'{SAKANA_API_BASE}{endpoint}'
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {api_key}',
     }
 
-    try:
-        resp = requests.post(
-            url,
-            headers=headers,
-            json=payload,
-            timeout=REQUEST_TIMEOUT,
-        )
-        # Sakana のレスポンスから巨大な暗号化コンテンツを除去（ブラウザ転送量削減）
-        sakana_response = resp.json()
-        _strip_encrypted_content(sakana_response)
-        return {
-            'statusCode': resp.status_code,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps(sakana_response, ensure_ascii=False),
-        }
-    except requests.exceptions.Timeout:
-        return _response(504, {'error': 'Sakana API request timed out'})
-    except requests.exceptions.RequestException as e:
-        return _response(502, {'error': f'Sakana API connection error: {str(e)}'})
+    last_error = None
+    for attempt in range(2):
+        try:
+            resp = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=REQUEST_TIMEOUT,
+            )
+            # 502/503 はリトライ
+            if resp.status_code in (502, 503) and attempt == 0:
+                time.sleep(2)
+                continue
+
+            # Sakana がエラーレスポンスを返した場合、その内容をそのまま返す
+            if not resp.ok:
+                try:
+                    sakana_error = resp.json()
+                except Exception:
+                    sakana_error = {'raw': resp.text[:1000]}
+                return {
+                    'statusCode': resp.status_code,
+                    'headers': {'Content-Type': 'application/json'},
+                    'body': json.dumps({
+                        'error': f'Sakana API error ({resp.status_code})',
+                        'sakana_response': sakana_error,
+                    }, ensure_ascii=False),
+                }
+
+            # 正常レスポンス: 巨大な暗号化コンテンツを除去（ブラウザ転送量削減）
+            sakana_response = resp.json()
+            _strip_encrypted_content(sakana_response)
+            return {
+                'statusCode': resp.status_code,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps(sakana_response, ensure_ascii=False),
+            }
+        except requests.exceptions.Timeout:
+            last_error = _response(504, {'error': 'Sakana API request timed out'})
+        except requests.exceptions.RequestException as e:
+            last_error = _response(502, {'error': f'Sakana API connection error: {str(e)}'})
+        except json.JSONDecodeError as e:
+            last_error = _response(502, {'error': f'Sakana API returned invalid JSON: {str(e)}'})
+
+    return last_error
 
 
 def _strip_encrypted_content(obj):
