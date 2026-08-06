@@ -102,7 +102,7 @@ Web検索を実行し、以下を自動取得する：
 | **レート制限** | 同一IPから1時間に50回まで（記事取得API / LLMプロキシ両方。DynamoDBでIPベース制限） |
 | **エンドポイント制限** | LLMプロキシ（Sakana中継）は `/v1/responses` のみ許可。汎用プロキシ化を防止 |
 | **ドメインブロック** | アダルト・犯罪関連ドメインをブロック |
-| **CORS制御** | API Gatewayで `comment-channel.okamomedia.tokyo` のみ許可 |
+| **CORS制御** | API Gateway および LLMプロキシ Function URL で `comment-channel.okamomedia.tokyo` のみ許可 |
 | **CloudFront OAC** | S3への直接アクセス禁止、CloudFront経由のみ |
 
 ---
