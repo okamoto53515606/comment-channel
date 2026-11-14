@@ -34,6 +34,13 @@ body {
   color: #fff;
 }
 .site-header h1 { font-size: 1.8rem; font-weight: 800; }
+.site-header .site-logo {
+  width: 1.3em;
+  height: 1.3em;
+  margin-right: .18em;
+  vertical-align: -.26em;
+  border-radius: 22%;
+}
 .site-header .subtitle { font-size: .9rem; opacity: .9; margin-top: .25rem; }
 
 /* ===== Layout ===== */
