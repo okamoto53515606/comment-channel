@@ -49,7 +49,9 @@ body {
   border: 1px solid var(--border);
 }
 .card h2 { font-size: 1.15rem; margin-bottom: 1rem; color: var(--accent); }
-.card.hidden { display: none; }
+
+/* 非表示ユーティリティ（card 以外の要素にも適用する） */
+.hidden { display: none !important; }
 
 /* ===== Form ===== */
 .form-group { margin-bottom: 1.25rem; }

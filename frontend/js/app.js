@@ -83,7 +83,7 @@ function initApp() {
 
   // ボタンイベント
   $('btn-fetch-article').addEventListener('click', handleFetchArticle);
-  $('btn-next-article').addEventListener('click', () => showStep('step-model'));
+  $('btn-next-article').addEventListener('click', handleNextArticle);
   $('btn-next-model').addEventListener('click', handleNextModel);
   $('btn-next-persona').addEventListener('click', handleNextPersona);
   $('btn-generate').addEventListener('click', handleGenerate);
@@ -219,9 +219,13 @@ async function fetchBackgroundContext() {
 
     // 結果表示
     const sourcesHtml = bg.sources && bg.sources.length > 0
-      ? bg.sources.slice(0, 5).map(s =>
-          `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener" class="bg-source-link">🔗 ${escapeHtml(s.title || s.url)}</a>`
-        ).join('')
+      ? bg.sources
+          .map(s => ({ title: s.title, url: safeHttpUrl(s.url) }))
+          .filter(s => s.url)
+          .slice(0, 5)
+          .map(s =>
+            `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer" class="bg-source-link">🔗 ${escapeHtml(s.title || s.url)}</a>`
+          ).join('')
       : '';
 
     const modelName = getSelectedModel().name;
@@ -246,6 +250,27 @@ async function fetchBackgroundContext() {
 }
 
 // ===== ステップ遷移ハンドラ =====
+
+// Step 1 → 2: 記事本文が入力されていることを確認してから遷移する
+function handleNextArticle() {
+  const text = $('article-text').value.trim();
+  const url = $('article-url').value.trim();
+
+  if (!text) {
+    state.articleText = '';
+    showStatus('article-fetch-status',
+      '⚠️ 記事本文が空です。URLから記事を取得するか、本文を貼り付けてから次へ進んでください。', 'error');
+    $('article-text').focus();
+    return;
+  }
+
+  // テキストエリアの内容を状態へ反映（貼り付け・編集内容を取りこぼさない）
+  state.articleText = text;
+  if (url) state.articleUrl = url;
+  hideStatus('article-fetch-status');
+  showStep('step-model');
+}
+
 function handleNextModel() {
   const apiKey = $('api-key').value.trim();
   if (!apiKey) {

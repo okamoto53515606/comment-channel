@@ -59,6 +59,17 @@ function generateUUID() {
   return crypto.randomUUID();
 }
 
+// 外部リンク用URLのサニタイズ（http/https のみ許可）
+function safeHttpUrl(raw) {
+  if (!raw) return '';
+  try {
+    const u = new URL(String(raw), window.location.href);
+    return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : '';
+  } catch {
+    return '';
+  }
+}
+
 // 現在のUTCタイムスタンプ（ISO形式）
 function utcNow() { return new Date().toISOString(); }
 
