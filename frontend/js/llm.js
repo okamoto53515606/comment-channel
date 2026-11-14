@@ -193,7 +193,7 @@ async function callSakanaProxy(apiKey, endpoint, payload) {
     let errMsg;
     try {
       const errJson = JSON.parse(errText);
-      errMsg = errJson?.error?.message || errJson?.error || errText;
+      errMsg = errJson?.message || errJson?.error?.message || errJson?.error || errText;
     } catch {
       errMsg = errText;
     }

@@ -165,67 +165,76 @@ async function generateAllComments(apiKey, personas, articleText, progressCallba
   totalUsage = { inputTokens: 0, outputTokens: 0 };
   const totalPersonas = personas.length;
 
-  for (let i = 0; i < totalPersonas; i++) {
-    const persona = personas[i];
-    const isLastFew = i >= totalPersonas - Math.ceil(totalPersonas * 0.3);
+  try {
+    for (let i = 0; i < totalPersonas; i++) {
+      const persona = personas[i];
+      const isLastFew = i >= totalPersonas - Math.ceil(totalPersonas * 0.3);
 
-    // コメント生成
-    const commentData = await generateCommentForPersona(
-      apiKey, persona, articleText, allComments, backgroundContext, tendency
-    );
+      // コメント生成
+      const commentData = await generateCommentForPersona(
+        apiKey, persona, articleText, allComments, backgroundContext, tendency
+      );
 
-    const commentEntry = {
-      id: generateUUID(),
-      persona,
-      comment: commentData.comment,
-      replies: [],
-      timestamp: commentData.timestamp,
-      tokens: commentData.tokens,
-    };
+      const commentEntry = {
+        id: generateUUID(),
+        persona,
+        comment: commentData.comment,
+        replies: [],
+        timestamp: commentData.timestamp,
+        tokens: commentData.tokens,
+      };
 
-    // 返信生成（後半30%のペルソナのみ、またはランダムで確率40%）
-    const shouldReply = isLastFew || Math.random() < 0.4;
-    if (shouldReply && allComments.length > 0) {
-      // 返信先をランダムに選択（最大3件、ただし重複しない）
-      const replyTargets = [];
-      const availableTargets = [...allComments]; // シャローコピー
-      const replyCount = Math.min(4, 1 + Math.floor(Math.random() * 3), availableTargets.length);
+      // 返信生成（後半30%のペルソナのみ、またはランダムで確率40%）
+      const shouldReply = isLastFew || Math.random() < 0.4;
+      if (shouldReply && allComments.length > 0) {
+        // 返信先をランダムに選択（最大3件、ただし重複しない）
+        const replyTargets = [];
+        const availableTargets = [...allComments]; // シャローコピー
+        const replyCount = Math.min(4, 1 + Math.floor(Math.random() * 3), availableTargets.length);
 
-      for (let r = 0; r < replyCount; r++) {
-        if (availableTargets.length === 0) break;
-        const idx = Math.floor(Math.random() * availableTargets.length);
-        replyTargets.push(availableTargets.splice(idx, 1)[0]);
-      }
+        for (let r = 0; r < replyCount; r++) {
+          if (availableTargets.length === 0) break;
+          const idx = Math.floor(Math.random() * availableTargets.length);
+          replyTargets.push(availableTargets.splice(idx, 1)[0]);
+        }
 
-      for (const target of replyTargets) {
-        const replyData = await generateReply(apiKey, persona, target, articleText, allComments, tendency);
-        // 返信を対象コメントに追加
-        const targetEntry = allComments.find(c => c.id === target.id);
-        if (targetEntry && targetEntry.replies.length < 4) {
-          targetEntry.replies.push({
-            id: generateUUID(),
-            ...replyData,
-          });
+        for (const target of replyTargets) {
+          const replyData = await generateReply(apiKey, persona, target, articleText, allComments, tendency);
+          // 返信を対象コメントに追加
+          const targetEntry = allComments.find(c => c.id === target.id);
+          if (targetEntry && targetEntry.replies.length < 4) {
+            targetEntry.replies.push({
+              id: generateUUID(),
+              ...replyData,
+            });
+          }
         }
       }
+
+      allComments.push(commentEntry);
+
+      // プログレス報告
+      const progress = {
+        current: i + 1,
+        total: totalPersonas,
+        percent: Math.round(((i + 1) / totalPersonas) * 100),
+        latestComment: commentEntry,
+        totalComments: allComments.length,
+        totalReplies: allComments.reduce((sum, c) => sum + c.replies.length, 0),
+        usage: { ...totalUsage },
+      };
+
+      if (progressCallback) {
+        await progressCallback(progress);
+      }
     }
-
-    allComments.push(commentEntry);
-
-    // プログレス報告
-    const progress = {
-      current: i + 1,
-      total: totalPersonas,
-      percent: Math.round(((i + 1) / totalPersonas) * 100),
-      latestComment: commentEntry,
-      totalComments: allComments.length,
-      totalReplies: allComments.reduce((sum, c) => sum + c.replies.length, 0),
+  } catch (err) {
+    // 途中までの生成結果を保持し、呼び出し元で表示できるようにする
+    err.partialResult = {
+      comments: allComments.slice(),
       usage: { ...totalUsage },
     };
-
-    if (progressCallback) {
-      await progressCallback(progress);
-    }
+    throw err;
   }
 
   return {

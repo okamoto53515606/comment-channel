@@ -128,6 +128,7 @@ Resources:
       Environment:
         Variables:
           RATE_LIMIT_TABLE: !Ref RateLimitTable
+          RATE_LIMIT_PER_HOUR: '1000'
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref RateLimitTable

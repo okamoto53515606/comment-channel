@@ -351,6 +351,16 @@ async function handleGenerate() {
 
   } catch (err) {
     console.error('生成エラー:', err);
+
+    // 途中まで生成できた場合は、その結果を表示する（長時間の生成を全損させない）
+    const partial = err.partialResult;
+    if (partial && partial.comments && partial.comments.length > 0) {
+      const partialCost = calcActualCost(partial.usage.inputTokens, partial.usage.outputTokens);
+      partial.warning = `⚠️ 生成の途中でエラーが発生したため、生成済みの ${partial.comments.length} 件のみ表示しています。\n${err.message || err}`;
+      showComplete(partial, partialCost);
+      return;
+    }
+
     showError(err.message || '予期せぬエラーが発生しました。');
   }
 }
@@ -463,7 +473,11 @@ function showComplete(commentsResult, cost) {
   state.generatedHtml = buildFullHtml(comments, summary, commentsResult.usage, state.tendency);
 
   const info = $('complete-info');
+  const warningHtml = commentsResult.warning
+    ? `<div class="bg-loading bg-failed" style="white-space:pre-wrap;">${escapeHtml(commentsResult.warning)}</div>`
+    : '';
   info.innerHTML = `
+    ${warningHtml}
     <p>🎉 <strong>${comments.length}件</strong>のコメントが生成されました（返信 ${comments.reduce((s, c) => s + (c.replies||[]).length, 0)}件）</p>
     <p>💰 API利用料金（概算）: <strong>$${cost.total.toFixed(3)} USD</strong>
        (入${cost.totalInputTokens.toLocaleString()} / 出${cost.totalOutputTokens.toLocaleString()} tokens)</p>
