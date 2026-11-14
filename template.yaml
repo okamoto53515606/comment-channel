@@ -136,10 +136,11 @@ Resources:
         Cors:
           AllowOrigins:
             - 'https://comment-channel.okamomedia.tokyo'
+          # Firefox は AllowMethods / AllowHeaders のワイルドカード(*)を解釈できないため明示指定する
           AllowMethods:
-            - '*'
+            - 'POST'
           AllowHeaders:
-            - '*'
+            - 'content-type'
 
   # ===== CloudFront =====
   CloudFrontDistribution:
